@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services;
 
@@ -25,9 +26,19 @@ public class ServicioController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var service = await _servicioService.GetByIdAsync(id);
-        if (service == null) return NotFound();
-        return Ok(service);
+        try
+        {
+            var servicio = await _servicioService.GetByIdAsync(id);
+            return Ok(servicio);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
+        catch (ServiceException ex)
+        {
+            return StatusCode(500, new { mensaje = ex.Message });
+        }
     }
 
     [HttpPost]
