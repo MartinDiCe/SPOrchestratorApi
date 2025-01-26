@@ -1,0 +1,6 @@
+@SPOrchestratorAPI_HostAddress = http://localhost:5250
+
+GET {{SPOrchestratorAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
