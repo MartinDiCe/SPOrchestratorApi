@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services;
 
 namespace SPOrchestratorAPI.Controllers;
 
-[Route("api/[controller]")]
+/// <summary>
+/// Controlador para gestionar los servicios.
+/// </summary>
+[Route("api/servicio")]
 [ApiController]
 public class ServicioController : ControllerBase
 {
@@ -16,52 +18,93 @@ public class ServicioController : ControllerBase
         _servicioService = servicioService;
     }
 
-    [HttpGet]
+    /// <summary>
+    /// Obtiene todos los servicios registrados (excluyendo los eliminados).
+    /// </summary>
+    [HttpGet("getall")]
+    [ActionName("GetAll")]
     public async Task<IActionResult> GetAll()
     {
-        var services = await _servicioService.GetAllAsync();
-        return Ok(services);
+        return Ok(await _servicioService.GetAllAsync());
     }
 
-    [HttpGet("{id}")]
+    /// <summary>
+    /// Obtiene un servicio por su ID.
+    /// </summary>
+    [HttpGet("getbyid/{id}")]
+    [ActionName("GetById")]
     public async Task<IActionResult> GetById(int id)
     {
-        try
-        {
-            var servicio = await _servicioService.GetByIdAsync(id);
-            return Ok(servicio);
-        }
-        catch (NotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message });
-        }
-        catch (ServiceException ex)
-        {
-            return StatusCode(500, new { mensaje = ex.Message });
-        }
+        return Ok(await _servicioService.GetByIdAsync(id));
     }
 
-    [HttpPost]
+    /// <summary>
+    /// Obtiene un servicio por su nombre.
+    /// </summary>
+    [HttpGet("getbyname/{name}")]
+    [ActionName("GetByName")]
+    public async Task<IActionResult> GetByName(string name)
+    {
+        return Ok(await _servicioService.GetByNameAsync(name));
+    }
+
+    /// <summary>
+    /// Crea un nuevo servicio.
+    /// </summary>
+    [HttpPost("create")]
+    [ActionName("Create")]
     public async Task<IActionResult> Create([FromBody] Servicio servicio)
     {
         var createdService = await _servicioService.CreateAsync(servicio);
         return CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService);
     }
 
-    [HttpPut("{id}")]
+    /// <summary>
+    /// Actualiza un servicio existente.
+    /// </summary>
+    [HttpPut("update/{id}")]
+    [ActionName("Update")]
     public async Task<IActionResult> Update(int id, [FromBody] Servicio servicio)
     {
-        if (id != servicio.Id) return BadRequest();
+        if (id != servicio.Id)
+        {
+            return BadRequest(new { mensaje = "El ID en la URL no coincide con el ID del servicio." });
+        }
+
         await _servicioService.UpdateAsync(servicio);
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    /// <summary>
+    /// Cambia el estado de un servicio (activo/inactivo).
+    /// </summary>
+    [HttpPatch("changestatus/{id}/{status}")]
+    [ActionName("ChangeStatus")]
+    public async Task<IActionResult> ChangeStatus(int id, bool status)
+    {
+        await _servicioService.ChangeStatusAsync(id, status);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Marca un servicio como eliminado (eliminación lógica).
+    /// </summary>
+    [HttpDelete("delete/{id}")]
+    [ActionName("Delete")]
     public async Task<IActionResult> Delete(int id)
     {
-        var service = await _servicioService.GetByIdAsync(id);
-        if (service == null) return NotFound();
-        await _servicioService.DeleteAsync(service);
+        await _servicioService.DeleteBySystemAsync(id);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Restaura un servicio eliminado.
+    /// </summary>
+    [HttpPost("restore/{id}")]
+    [ActionName("Restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _servicioService.RestoreBySystemAsync(id);
         return NoContent();
     }
 }

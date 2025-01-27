@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using SPOrchestratorAPI.Models.Entities;
+﻿using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories;
 using SPOrchestratorAPI.Exceptions;
 
@@ -15,95 +14,121 @@ public class ServicioService
         _servicioRepository = servicioRepository;
         _logger = logger;
     }
-    
+
+    /// <summary>
+    /// Obtiene todos los servicios activos (excluyendo eliminados).
+    /// </summary>
     public async Task<IEnumerable<Servicio>> GetAllAsync()
     {
-        try
+        var servicios = await _servicioRepository.GetAllAsync(s => !s.Deleted);
+        if (!servicios.Any())
         {
-            var servicios = await _servicioRepository.GetAllAsync();
-            if (!servicios.Any())
-            {
-                throw new NotFoundException("No se encontraron servicios.");
-            }
-            return servicios;
+            throw new NotFoundException("No se encontraron servicios.");
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al obtener todos los servicios.");
-            throw new ServiceException("Ocurrió un error al recuperar los servicios.", ex);
-        }
+        return servicios;
     }
-    
+
+    /// <summary>
+    /// Obtiene un servicio por su ID, solo si no está eliminado.
+    /// </summary>
     public async Task<Servicio?> GetByIdAsync(int id)
     {
-        try
+        var servicio = await _servicioRepository.GetByIdAsync(id);
+        if (servicio == null || servicio.Deleted)
         {
-            var servicio = await _servicioRepository.GetByIdAsync(id);
-            if (servicio == null)
-            {
-                throw new NotFoundException($"No se encontró el servicio con ID {id}.");
-            }
-            return servicio;
+            throw new NotFoundException($"No se encontró el servicio con ID {id}.");
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Error al obtener el servicio con ID {id}.");
-            throw new ServiceException($"Ocurrió un error al recuperar el servicio con ID {id}.", ex);
-        }
+        return servicio;
     }
-    
+
+    /// <summary>
+    /// Obtiene un servicio por su nombre, solo si no está eliminado.
+    /// </summary>
+    public async Task<Servicio?> GetByNameAsync(string name)
+    {
+        var servicio = await _servicioRepository.GetAllAsync(s => s.Name == name && !s.Deleted);
+        return servicio.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Crea un nuevo servicio.
+    /// </summary>
     public async Task<Servicio> CreateAsync(Servicio servicio)
     {
-        try
+        if (string.IsNullOrEmpty(servicio.Name))
         {
-            if (string.IsNullOrEmpty(servicio.Name))
-                throw new ArgumentException("El nombre del servicio es obligatorio.");
+            throw new ArgumentException("El nombre del servicio es obligatorio.");
+        }
 
-            var createdServicio = await _servicioRepository.AddAsync(servicio);
-            return createdServicio;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al crear un servicio.");
-            throw new ServiceException("Ocurrió un error al crear el servicio.", ex);
-        }
+        return await _servicioRepository.AddAsync(servicio);
     }
-    
+
+    /// <summary>
+    /// Actualiza un servicio existente.
+    /// </summary>
     public async Task UpdateAsync(Servicio servicio)
     {
-        try
+        var existingServicio = await GetByIdAsync(servicio.Id);
+        if (existingServicio == null)
         {
-            var existingServicio = await _servicioRepository.GetByIdAsync(servicio.Id);
-            if (existingServicio == null)
-            {
-                throw new NotFoundException($"No se encontró el servicio con ID {servicio.Id}.");
-            }
+            throw new NotFoundException($"No se encontró el servicio con ID {servicio.Id}.");
+        }
 
-            await _servicioRepository.UpdateAsync(servicio);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Error al actualizar el servicio con ID {servicio.Id}.");
-            throw new ServiceException($"Ocurrió un error al actualizar el servicio con ID {servicio.Id}.", ex);
-        }
+        servicio.UpdatedAt = DateTime.UtcNow;
+        servicio.UpdatedBy = "System";
+        await _servicioRepository.UpdateAsync(servicio);
     }
-    
-    public async Task DeleteAsync(Servicio servicio)
-    {
-        try
-        {
-            var existingServicio = await _servicioRepository.GetByIdAsync(servicio.Id);
-            if (existingServicio == null)
-            {
-                throw new NotFoundException($"No se encontró el servicio con ID {servicio.Id}.");
-            }
 
-            await _servicioRepository.DeleteAsync(servicio);
-        }
-        catch (Exception ex)
+    /// <summary>
+    /// Cambia el estado de un servicio (activo/inactivo).
+    /// </summary>
+    public async Task ChangeStatusAsync(int id, bool newStatus)
+    {
+        var servicio = await GetByIdAsync(id);
+        if (servicio == null)
         {
-            _logger.LogError(ex, $"Error al eliminar el servicio con ID {servicio.Id}.");
-            throw new ServiceException($"Ocurrió un error al eliminar el servicio con ID {servicio.Id}.", ex);
+            throw new NotFoundException($"No se encontró el servicio con ID {id}.");
         }
+
+        servicio.Status = newStatus;
+        servicio.UpdatedAt = DateTime.UtcNow;
+        servicio.UpdatedBy = "System";
+        await _servicioRepository.UpdateAsync(servicio);
+    }
+
+    /// <summary>
+    /// Marca un servicio como eliminado (eliminación lógica).
+    /// </summary>
+    public async Task DeleteBySystemAsync(int id)
+    {
+        var servicio = await GetByIdAsync(id);
+        if (servicio == null)
+        {
+            throw new NotFoundException($"No se encontró el servicio con ID {id}.");
+        }
+
+        servicio.Deleted = true;
+        servicio.DeletedAt = DateTime.UtcNow;
+        servicio.DeletedBy = "System";
+        await _servicioRepository.UpdateAsync(servicio);
+    }
+
+    /// <summary>
+    /// Restaura un servicio eliminado.
+    /// </summary>
+    public async Task RestoreBySystemAsync(int id)
+    {
+        var servicio = await _servicioRepository.GetByIdAsync(id);
+        if (servicio == null || !servicio.Deleted)
+        {
+            throw new NotFoundException($"No se encontró un servicio eliminado con ID {id}.");
+        }
+
+        servicio.Deleted = false;
+        servicio.DeletedAt = null;
+        servicio.DeletedBy = null;
+        servicio.UpdatedAt = DateTime.UtcNow;
+        servicio.UpdatedBy = "System";
+        await _servicioRepository.UpdateAsync(servicio);
     }
 }
