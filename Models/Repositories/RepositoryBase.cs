@@ -1,4 +1,6 @@
 ﻿using System.Linq.Expressions;
+using System.Reactive;
+using System.Reactive.Linq;
 using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Data;
 
@@ -16,51 +18,65 @@ public class RepositoryBase<T> : IRepository<T> where T : class
     }
 
     /// <summary>
-    /// Obtiene todos los registros de la entidad, con opción de aplicar un filtro.
+    /// Obtiene todos los registros de la entidad de manera reactiva.
     /// </summary>
-    public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? filter = null)
+    public IObservable<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? filter = null)
     {
-        IQueryable<T> query = _dbSet;
-        if (filter != null)
+        return Observable.FromAsync(async () =>
         {
-            query = query.Where(filter);
-        }
-        return await query.ToListAsync();
+            IQueryable<T> query = _dbSet;
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+            return await query.ToListAsync();
+        });
     }
 
     /// <summary>
-    /// Obtiene un registro por su clave primaria.
+    /// Obtiene un registro por su clave primaria de manera reactiva.
     /// </summary>
-    public async Task<T?> GetByIdAsync<TKey>(TKey id) where TKey : notnull
+    public IObservable<T?> GetByIdAsync<TKey>(TKey id) where TKey : notnull
     {
-        return await _dbSet.FindAsync(id);
+        return Observable.FromAsync(async () => await _dbSet.FindAsync(id));
     }
 
     /// <summary>
-    /// Agrega un nuevo registro a la base de datos.
+    /// Agrega un nuevo registro a la base de datos de manera reactiva.
     /// </summary>
-    public async Task<T> AddAsync(T entity)
+    public IObservable<T> AddAsync(T entity)
     {
-        await _dbSet.AddAsync(entity);
-        await _context.SaveChangesAsync();
-        return entity;
+        return Observable.FromAsync(async () =>
+        {
+            await _dbSet.AddAsync(entity);
+            await _context.SaveChangesAsync();
+            return entity;
+        });
     }
 
     /// <summary>
-    /// Actualiza un registro existente en la base de datos.
+    /// Actualiza un registro existente en la base de datos de manera reactiva.
     /// </summary>
-    public async Task UpdateAsync(T entity)
+    public IObservable<Unit> UpdateAsync(T entity)
     {
-        _dbSet.Update(entity);
-        await _context.SaveChangesAsync();
+        return Observable.FromAsync(async () =>
+        {
+            _dbSet.Update(entity);
+            await _context.SaveChangesAsync();
+            return Unit.Default;
+        });
     }
 
     /// <summary>
-    /// Elimina un registro de la base de datos.
+    /// Elimina un registro de la base de datos de manera reactiva.
     /// </summary>
-    public async Task DeleteAsync(T entity)
+    public IObservable<Unit> DeleteAsync(T entity)
     {
-        _dbSet.Remove(entity);
-        await _context.SaveChangesAsync();
+        return Observable.FromAsync(async () =>
+        {
+            _dbSet.Remove(entity);
+            await _context.SaveChangesAsync();
+            return Unit.Default;
+        });
     }
 }

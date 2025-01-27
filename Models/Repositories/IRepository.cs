@@ -1,31 +1,32 @@
 ﻿using System.Linq.Expressions;
+using System.Reactive;
 
 namespace SPOrchestratorAPI.Models.Repositories;
 
 public interface IRepository<T> where T : class
 {
     /// <summary>
-    /// Obtiene todos los registros de la entidad, con opción de aplicar un filtro.
+    /// Obtiene todos los registros de la entidad de manera reactiva, con opción de aplicar un filtro.
     /// </summary>
-    Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? filter = null);
+    IObservable<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? filter = null);
 
     /// <summary>
-    /// Obtiene un registro por su clave primaria.
+    /// Obtiene un registro por su clave primaria de manera reactiva.
     /// </summary>
-    Task<T?> GetByIdAsync<TKey>(TKey id) where TKey : notnull;
+    IObservable<T?> GetByIdAsync<TKey>(TKey id) where TKey : notnull;
 
     /// <summary>
-    /// Agrega un nuevo registro de servicio a la base de datos.
+    /// Agrega un nuevo registro de servicio a la base de datos de manera reactiva.
     /// </summary>
-    Task<T> AddAsync(T entity);
+    IObservable<T> AddAsync(T entity);
 
     /// <summary>
-    /// Actualiza un registro existente en la base de datos.
+    /// Actualiza un registro existente en la base de datos de manera reactiva.
     /// </summary>
-    Task UpdateAsync(T entity);
+    IObservable<Unit> UpdateAsync(T entity);
 
     /// <summary>
-    /// Elimina un registro de la base de datos.
+    /// Elimina un registro de la base de datos de manera reactiva.
     /// </summary>
-    Task DeleteAsync(T entity);
+    IObservable<Unit> DeleteAsync(T entity);
 }

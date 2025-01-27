@@ -1,11 +1,14 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services;
+using System;
+using System.Collections.Generic;
+using System.Reactive.Linq;
 
 namespace SPOrchestratorAPI.Controllers;
 
 /// <summary>
-/// Controlador para gestionar los servicios.
+/// Controlador para gestionar los servicios de manera reactiva.
 /// </summary>
 [Route("api/servicio")]
 [ApiController]
@@ -22,89 +25,84 @@ public class ServicioController : ControllerBase
     /// Obtiene todos los servicios registrados (excluyendo los eliminados).
     /// </summary>
     [HttpGet("getall")]
-    [ActionName("GetAll")]
-    public async Task<IActionResult> GetAll()
+    public IObservable<IActionResult> GetAll()
     {
-        return Ok(await _servicioService.GetAllAsync());
+        return _servicioService.GetAllAsync()
+            .Select(servicios => Ok(servicios) as IActionResult);
     }
 
     /// <summary>
     /// Obtiene un servicio por su ID.
     /// </summary>
     [HttpGet("getbyid/{id}")]
-    [ActionName("GetById")]
-    public async Task<IActionResult> GetById(int id)
+    public IObservable<IActionResult> GetById(int id)
     {
-        return Ok(await _servicioService.GetByIdAsync(id));
+        return _servicioService.GetByIdAsync(id)
+            .Select(servicio => Ok(servicio) as IActionResult);
     }
 
     /// <summary>
     /// Obtiene un servicio por su nombre.
     /// </summary>
     [HttpGet("getbyname/{name}")]
-    [ActionName("GetByName")]
-    public async Task<IActionResult> GetByName(string name)
+    public IObservable<IActionResult> GetByName(string name)
     {
-        return Ok(await _servicioService.GetByNameAsync(name));
+        return _servicioService.GetByNameAsync(name)
+            .Select(servicio => Ok(servicio) as IActionResult);
     }
 
     /// <summary>
     /// Crea un nuevo servicio.
     /// </summary>
     [HttpPost("create")]
-    [ActionName("Create")]
-    public async Task<IActionResult> Create([FromBody] Servicio servicio)
+    public IObservable<IActionResult> Create([FromBody] Servicio servicio)
     {
-        var createdService = await _servicioService.CreateAsync(servicio);
-        return CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService);
+        return _servicioService.CreateAsync(servicio)
+            .Select(createdService => CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService) as IActionResult);
     }
 
     /// <summary>
     /// Actualiza un servicio existente.
     /// </summary>
     [HttpPut("update/{id}")]
-    [ActionName("Update")]
-    public async Task<IActionResult> Update(int id, [FromBody] Servicio servicio)
+    public IObservable<IActionResult> Update(int id, [FromBody] Servicio servicio)
     {
         if (id != servicio.Id)
         {
-            return BadRequest(new { mensaje = "El ID en la URL no coincide con el ID del servicio." });
+            return Observable.Return(BadRequest(new { mensaje = "El ID en la URL no coincide con el ID del servicio." }) as IActionResult);
         }
 
-        await _servicioService.UpdateAsync(servicio);
-        return NoContent();
+        return _servicioService.UpdateAsync(servicio)
+            .Select(_ => NoContent() as IActionResult);
     }
 
     /// <summary>
     /// Cambia el estado de un servicio (activo/inactivo).
     /// </summary>
     [HttpPatch("changestatus/{id}/{status}")]
-    [ActionName("ChangeStatus")]
-    public async Task<IActionResult> ChangeStatus(int id, bool status)
+    public IObservable<IActionResult> ChangeStatus(int id, bool status)
     {
-        await _servicioService.ChangeStatusAsync(id, status);
-        return NoContent();
+        return _servicioService.ChangeStatusAsync(id, status)
+            .Select(_ => NoContent() as IActionResult);
     }
 
     /// <summary>
     /// Marca un servicio como eliminado (eliminación lógica).
     /// </summary>
     [HttpDelete("delete/{id}")]
-    [ActionName("Delete")]
-    public async Task<IActionResult> Delete(int id)
+    public IObservable<IActionResult> Delete(int id)
     {
-        await _servicioService.DeleteBySystemAsync(id);
-        return NoContent();
+        return _servicioService.DeleteBySystemAsync(id)
+            .Select(_ => NoContent() as IActionResult);
     }
 
     /// <summary>
     /// Restaura un servicio eliminado.
     /// </summary>
     [HttpPost("restore/{id}")]
-    [ActionName("Restore")]
-    public async Task<IActionResult> Restore(int id)
+    public IObservable<IActionResult> Restore(int id)
     {
-        await _servicioService.RestoreBySystemAsync(id);
-        return NoContent();
+        return _servicioService.RestoreBySystemAsync(id)
+            .Select(_ => NoContent() as IActionResult);
     }
 }

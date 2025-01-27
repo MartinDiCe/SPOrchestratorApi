@@ -1,4 +1,7 @@
-﻿using SPOrchestratorAPI.Models.Entities;
+﻿using System;
+using System.Reactive;
+using System.Reactive.Linq;
+using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories;
 using SPOrchestratorAPI.Exceptions;
 
@@ -7,128 +10,132 @@ namespace SPOrchestratorAPI.Services;
 public class ServicioService
 {
     private readonly IRepository<Servicio> _servicioRepository;
-    private readonly ILogger<ServicioService> _logger;
 
-    public ServicioService(IRepository<Servicio> servicioRepository, ILogger<ServicioService> logger)
+    public ServicioService(IRepository<Servicio> servicioRepository)
     {
         _servicioRepository = servicioRepository;
-        _logger = logger;
     }
 
     /// <summary>
-    /// Obtiene todos los servicios activos (excluyendo eliminados).
+    /// Obtiene todos los servicios activos (excluyendo eliminados) de manera reactiva.
     /// </summary>
-    public async Task<IEnumerable<Servicio>> GetAllAsync()
+    public IObservable<IEnumerable<Servicio>> GetAllAsync()
     {
-        var servicios = await _servicioRepository.GetAllAsync(s => !s.Deleted);
-        if (!servicios.Any())
+        return _servicioRepository.GetAllAsync(s => !s.Deleted)
+            .Select(servicios =>
+            {
+                if (!servicios.Any())
+                {
+                    throw new NotFoundException("No se encontraron servicios.");
+                }
+                return servicios;
+            });
+    }
+
+    /// <summary>
+    /// Obtiene un servicio por su ID de manera reactiva.
+    /// </summary>
+    public IObservable<Servicio?> GetByIdAsync(int id)
+    {
+        return _servicioRepository.GetByIdAsync(id)
+            .Select(servicio =>
+            {
+                if (servicio == null || servicio.Deleted)
+                {
+                    throw new NotFoundException($"No se encontró el servicio con ID {id}.");
+                }
+                return servicio;
+            });
+    }
+
+    /// <summary>
+    /// Obtiene un servicio por su nombre de manera reactiva.
+    /// </summary>
+    public IObservable<Servicio?> GetByNameAsync(string name)
+    {
+        return _servicioRepository.GetAllAsync(s => s.Name == name && !s.Deleted)
+            .Select(servicios => servicios.FirstOrDefault());
+    }
+
+    /// <summary>
+    /// Crea un nuevo servicio de manera reactiva.
+    /// </summary>
+    public IObservable<Servicio> CreateAsync(Servicio servicio)
+    {
+        return Observable.FromAsync(async () =>
         {
-            throw new NotFoundException("No se encontraron servicios.");
-        }
-        return servicios;
+            if (string.IsNullOrEmpty(servicio.Name))
+            {
+                throw new ArgumentException("El nombre del servicio es obligatorio.");
+            }
+            return await _servicioRepository.AddAsync(servicio);
+        });
     }
 
     /// <summary>
-    /// Obtiene un servicio por su ID, solo si no está eliminado.
+    /// Actualiza un servicio existente de manera reactiva.
     /// </summary>
-    public async Task<Servicio?> GetByIdAsync(int id)
+    public IObservable<Unit> UpdateAsync(Servicio servicio)
     {
-        var servicio = await _servicioRepository.GetByIdAsync(id);
-        if (servicio == null || servicio.Deleted)
-        {
-            throw new NotFoundException($"No se encontró el servicio con ID {id}.");
-        }
-        return servicio;
+        return GetByIdAsync(servicio.Id)
+            .SelectMany(existingServicio =>
+            {
+                servicio.UpdatedAt = DateTime.UtcNow;
+                servicio.UpdatedBy = "System";
+                return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
+            });
     }
 
     /// <summary>
-    /// Obtiene un servicio por su nombre, solo si no está eliminado.
+    /// Cambia el estado de un servicio de manera reactiva.
     /// </summary>
-    public async Task<Servicio?> GetByNameAsync(string name)
+    public IObservable<Unit> ChangeStatusAsync(int id, bool newStatus)
     {
-        var servicio = await _servicioRepository.GetAllAsync(s => s.Name == name && !s.Deleted);
-        return servicio.FirstOrDefault();
+        return GetByIdAsync(id)
+            .SelectMany(servicio =>
+            {
+                servicio.Status = newStatus;
+                servicio.UpdatedAt = DateTime.UtcNow;
+                servicio.UpdatedBy = "System";
+                return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
+            });
     }
 
     /// <summary>
-    /// Crea un nuevo servicio.
+    /// Marca un servicio como eliminado (eliminación lógica) de manera reactiva.
     /// </summary>
-    public async Task<Servicio> CreateAsync(Servicio servicio)
+    public IObservable<Unit> DeleteBySystemAsync(int id)
     {
-        if (string.IsNullOrEmpty(servicio.Name))
-        {
-            throw new ArgumentException("El nombre del servicio es obligatorio.");
-        }
-
-        return await _servicioRepository.AddAsync(servicio);
+        return GetByIdAsync(id)
+            .SelectMany(servicio =>
+            {
+                servicio.Deleted = true;
+                servicio.DeletedAt = DateTime.UtcNow;
+                servicio.DeletedBy = "System";
+                return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
+            });
     }
 
     /// <summary>
-    /// Actualiza un servicio existente.
+    /// Restaura un servicio eliminado de manera reactiva.
     /// </summary>
-    public async Task UpdateAsync(Servicio servicio)
+    public IObservable<Unit> RestoreBySystemAsync(int id)
     {
-        var existingServicio = await GetByIdAsync(servicio.Id);
-        if (existingServicio == null)
-        {
-            throw new NotFoundException($"No se encontró el servicio con ID {servicio.Id}.");
-        }
+        return _servicioRepository.GetByIdAsync(id)
+            .SelectMany(servicio =>
+            {
+                if (servicio == null || !servicio.Deleted)
+                {
+                    throw new NotFoundException($"No se encontró un servicio eliminado con ID {id}.");
+                }
 
-        servicio.UpdatedAt = DateTime.UtcNow;
-        servicio.UpdatedBy = "System";
-        await _servicioRepository.UpdateAsync(servicio);
-    }
-
-    /// <summary>
-    /// Cambia el estado de un servicio (activo/inactivo).
-    /// </summary>
-    public async Task ChangeStatusAsync(int id, bool newStatus)
-    {
-        var servicio = await GetByIdAsync(id);
-        if (servicio == null)
-        {
-            throw new NotFoundException($"No se encontró el servicio con ID {id}.");
-        }
-
-        servicio.Status = newStatus;
-        servicio.UpdatedAt = DateTime.UtcNow;
-        servicio.UpdatedBy = "System";
-        await _servicioRepository.UpdateAsync(servicio);
-    }
-
-    /// <summary>
-    /// Marca un servicio como eliminado (eliminación lógica).
-    /// </summary>
-    public async Task DeleteBySystemAsync(int id)
-    {
-        var servicio = await GetByIdAsync(id);
-        if (servicio == null)
-        {
-            throw new NotFoundException($"No se encontró el servicio con ID {id}.");
-        }
-
-        servicio.Deleted = true;
-        servicio.DeletedAt = DateTime.UtcNow;
-        servicio.DeletedBy = "System";
-        await _servicioRepository.UpdateAsync(servicio);
-    }
-
-    /// <summary>
-    /// Restaura un servicio eliminado.
-    /// </summary>
-    public async Task RestoreBySystemAsync(int id)
-    {
-        var servicio = await _servicioRepository.GetByIdAsync(id);
-        if (servicio == null || !servicio.Deleted)
-        {
-            throw new NotFoundException($"No se encontró un servicio eliminado con ID {id}.");
-        }
-
-        servicio.Deleted = false;
-        servicio.DeletedAt = null;
-        servicio.DeletedBy = null;
-        servicio.UpdatedAt = DateTime.UtcNow;
-        servicio.UpdatedBy = "System";
-        await _servicioRepository.UpdateAsync(servicio);
+                servicio.Deleted = false;
+                servicio.DeletedAt = null;
+                servicio.DeletedBy = null;
+                servicio.UpdatedAt = DateTime.UtcNow;
+                servicio.UpdatedBy = "System";
+                return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
+            });
     }
 }
+
