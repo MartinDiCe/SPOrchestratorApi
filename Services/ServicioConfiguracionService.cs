@@ -1,4 +1,4 @@
-﻿using System.Reactive;
+﻿using System.Reactive; 
 using System.Reactive.Linq;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories;
@@ -24,14 +24,16 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
                     throw new NotFoundException("No se encontraron configuraciones de servicios.");
                 }
                 return configList;
-            });
+            })
+            .Catch<IEnumerable<ServicioConfiguracion>, Exception>(ex => Observable.Throw<IEnumerable<ServicioConfiguracion>>(ex));
     }
 
     /// <inheritdoc />
     public IObservable<ServicioConfiguracion> GetByServicioIdAsync(int servicioId)
     {
         return servicioConfiguracionRepository.GetByIdAsync(servicioId)
-            .Select(config => config ?? throw new NotFoundException($"No se encontró la configuración para el servicio con ID {servicioId}."));
+            .Select(config => config ?? throw new NotFoundException($"No se encontró la configuración para el servicio con ID {servicioId}."))
+            .Catch<ServicioConfiguracion, Exception>(ex => Observable.Throw<ServicioConfiguracion>(ex));
     }
 
     /// <inheritdoc />
@@ -44,7 +46,8 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
                 throw new ArgumentException("El nombre del procedimiento es obligatorio.");
             }
             return await servicioConfiguracionRepository.AddAsync(config);
-        });
+        })
+        .Catch<ServicioConfiguracion, Exception>(ex => Observable.Throw<ServicioConfiguracion>(ex));
     }
 
     /// <inheritdoc />
@@ -55,8 +58,9 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
             {
                 config.UpdatedAt = DateTime.UtcNow;
                 config.UpdatedBy = "System";
-                return servicioConfiguracionRepository.UpdateAsync(config);
-            });
+                return servicioConfiguracionRepository.UpdateAsync(config).Select(_ => Unit.Default);
+            })
+            .Catch<Unit, Exception>(ex => Observable.Throw<Unit>(ex));
     }
 
     /// <inheritdoc />
@@ -68,8 +72,9 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
                 config.Deleted = true;
                 config.DeletedAt = DateTime.UtcNow;
                 config.DeletedBy = "System";
-                return servicioConfiguracionRepository.UpdateAsync(config);
-            });
+                return servicioConfiguracionRepository.UpdateAsync(config).Select(_ => Unit.Default);
+            })
+            .Catch<Unit, Exception>(ex => Observable.Throw<Unit>(ex));
     }
 
     /// <inheritdoc />
@@ -85,7 +90,8 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
                 config.DeletedBy = null;
                 config.UpdatedAt = DateTime.UtcNow;
                 config.UpdatedBy = "System";
-                return servicioConfiguracionRepository.UpdateAsync(config);
-            });
+                return servicioConfiguracionRepository.UpdateAsync(config).Select(_ => Unit.Default);
+            })
+            .Catch<Unit, Exception>(ex => Observable.Throw<Unit>(ex));
     }
 }

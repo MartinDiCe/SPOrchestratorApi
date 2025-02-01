@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services;
-using System;
-using System.Collections.Generic;
 using System.Reactive.Linq;
 
 namespace SPOrchestratorAPI.Controllers;
@@ -12,23 +10,17 @@ namespace SPOrchestratorAPI.Controllers;
 /// </summary>
 [Route("api/servicio")]
 [ApiController]
-public class ServicioController : ControllerBase
+public class ServicioController(IServicioService servicioService) : ControllerBase
 {
-    private readonly ServicioService _servicioService;
-
-    public ServicioController(ServicioService servicioService)
-    {
-        _servicioService = servicioService;
-    }
-
     /// <summary>
     /// Obtiene todos los servicios registrados (excluyendo los eliminados).
     /// </summary>
     [HttpGet("getall")]
     public IObservable<IActionResult> GetAll()
     {
-        return _servicioService.GetAllAsync()
-            .Select(servicios => Ok(servicios) as IActionResult);
+        return servicioService.GetAllAsync()
+            .Select(servicios => Ok(servicios) as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -37,8 +29,9 @@ public class ServicioController : ControllerBase
     [HttpGet("getbyid/{id}")]
     public IObservable<IActionResult> GetById(int id)
     {
-        return _servicioService.GetByIdAsync(id)
-            .Select(servicio => Ok(servicio) as IActionResult);
+        return servicioService.GetByIdAsync(id)
+            .Select(servicio => Ok(servicio) as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -47,8 +40,9 @@ public class ServicioController : ControllerBase
     [HttpGet("getbyname/{name}")]
     public IObservable<IActionResult> GetByName(string name)
     {
-        return _servicioService.GetByNameAsync(name)
-            .Select(servicio => Ok(servicio) as IActionResult);
+        return servicioService.GetByNameAsync(name)
+            .Select(servicio => Ok(servicio) as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -57,8 +51,9 @@ public class ServicioController : ControllerBase
     [HttpPost("create")]
     public IObservable<IActionResult> Create([FromBody] Servicio servicio)
     {
-        return _servicioService.CreateAsync(servicio)
-            .Select(createdService => CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService) as IActionResult);
+        return servicioService.CreateAsync(servicio)
+            .Select(createdService => CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService) as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -69,11 +64,12 @@ public class ServicioController : ControllerBase
     {
         if (id != servicio.Id)
         {
-            return Observable.Return(BadRequest(new { mensaje = "El ID en la URL no coincide con el ID del servicio." }) as IActionResult);
+            return Observable.Throw<IActionResult>(new ArgumentException("El ID en la URL no coincide con el ID del servicio."));
         }
 
-        return _servicioService.UpdateAsync(servicio)
-            .Select(_ => NoContent() as IActionResult);
+        return servicioService.UpdateAsync(servicio)
+            .Select(_ => NoContent() as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -82,8 +78,9 @@ public class ServicioController : ControllerBase
     [HttpPatch("changestatus/{id}/{status}")]
     public IObservable<IActionResult> ChangeStatus(int id, bool status)
     {
-        return _servicioService.ChangeStatusAsync(id, status)
-            .Select(_ => NoContent() as IActionResult);
+        return servicioService.ChangeStatusAsync(id, status)
+            .Select(_ => NoContent() as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -92,8 +89,9 @@ public class ServicioController : ControllerBase
     [HttpDelete("delete/{id}")]
     public IObservable<IActionResult> Delete(int id)
     {
-        return _servicioService.DeleteBySystemAsync(id)
-            .Select(_ => NoContent() as IActionResult);
+        return servicioService.DeleteBySystemAsync(id)
+            .Select(_ => NoContent() as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 
     /// <summary>
@@ -102,7 +100,8 @@ public class ServicioController : ControllerBase
     [HttpPost("restore/{id}")]
     public IObservable<IActionResult> Restore(int id)
     {
-        return _servicioService.RestoreBySystemAsync(id)
-            .Select(_ => NoContent() as IActionResult);
+        return servicioService.RestoreBySystemAsync(id)
+            .Select(_ => NoContent() as IActionResult)
+            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
 }
