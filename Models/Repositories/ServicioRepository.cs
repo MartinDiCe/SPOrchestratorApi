@@ -5,17 +5,21 @@ using SPOrchestratorAPI.Models.Entities;
 
 namespace SPOrchestratorAPI.Models.Repositories;
 
-public class ServicioRepository : RepositoryBase<Servicio>
+/// <summary>
+/// Repositorio específico para `Servicio`, heredando `RepositoryBase&lt; Servicio&gt; `.
+/// </summary>
+public class ServicioRepository(ApplicationDbContext context) : RepositoryBase<Servicio>(context)
 {
-    public ServicioRepository(ApplicationDbContext context) : base(context) { }
-
     /// <summary>
     /// Obtiene todos los servicios activos de manera reactiva.
     /// </summary>
+    /// <returns>
+    /// Un flujo observable que emite una colección de servicios activos, es decir, aquellos cuyo estado es `true` y que no han sido eliminados (`Deleted == false`).
+    /// </returns>
     public IObservable<IEnumerable<Servicio>> GetActiveServicesAsync()
     {
         return Observable.FromAsync(async () =>
-            await _context.Set<Servicio>()
+            await Context.Set<Servicio>()  // 🔹 Usa 'Context' en lugar de '_context'
                 .Where(s => s.Status == true && s.Deleted == false)
                 .ToListAsync());
     }

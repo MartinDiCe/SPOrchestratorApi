@@ -6,16 +6,23 @@ using SPOrchestratorAPI.Data;
 
 namespace SPOrchestratorAPI.Models.Repositories;
 
+/// <summary>
+/// Repositorio base genérico para operaciones CRUD de manera reactiva.
+/// </summary>
 public class RepositoryBase<T> : IRepository<T> where T : class
 {
-    protected readonly ApplicationDbContext _context;
     private readonly DbSet<T> _dbSet;
 
-    public RepositoryBase(ApplicationDbContext context)
+    protected RepositoryBase(ApplicationDbContext context)
     {
-        _context = context;
-        _dbSet = _context.Set<T>();
+        Context = context ?? throw new ArgumentNullException(nameof(context));
+        _dbSet = Context.Set<T>();
     }
+
+    /// <summary>
+    /// Obtiene el contexto de la base de datos.
+    /// </summary>
+    protected ApplicationDbContext Context { get; }
 
     /// <summary>
     /// Obtiene todos los registros de la entidad de manera reactiva.
@@ -30,7 +37,8 @@ public class RepositoryBase<T> : IRepository<T> where T : class
                 query = query.Where(filter);
             }
             return await query.ToListAsync();
-        });
+        })
+        .Catch(Observable.Return(Enumerable.Empty<T>()));
     }
 
     /// <summary>
@@ -38,7 +46,8 @@ public class RepositoryBase<T> : IRepository<T> where T : class
     /// </summary>
     public IObservable<T?> GetByIdAsync<TKey>(TKey id) where TKey : notnull
     {
-        return Observable.FromAsync(async () => await _dbSet.FindAsync(id));
+        return Observable.FromAsync(async () => await _dbSet.FindAsync(id))
+        .Catch(Observable.Return<T?>(null));
     }
 
     /// <summary>
@@ -46,11 +55,18 @@ public class RepositoryBase<T> : IRepository<T> where T : class
     /// </summary>
     public IObservable<T> AddAsync(T entity)
     {
+        if (entity == null) throw new ArgumentNullException(nameof(entity));
+
         return Observable.FromAsync(async () =>
         {
             await _dbSet.AddAsync(entity);
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
             return entity;
+        })
+        .Catch<T, Exception>(ex =>
+        {
+            Console.WriteLine($"Error en AddAsync: {ex.Message}");
+            return Observable.Throw<T>(ex);
         });
     }
 
@@ -59,12 +75,15 @@ public class RepositoryBase<T> : IRepository<T> where T : class
     /// </summary>
     public IObservable<Unit> UpdateAsync(T entity)
     {
+        if (entity == null) throw new ArgumentNullException(nameof(entity));
+
         return Observable.FromAsync(async () =>
         {
             _dbSet.Update(entity);
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
             return Unit.Default;
-        });
+        })
+        .Catch(Observable.Return(Unit.Default));
     }
 
     /// <summary>
@@ -72,11 +91,14 @@ public class RepositoryBase<T> : IRepository<T> where T : class
     /// </summary>
     public IObservable<Unit> DeleteAsync(T entity)
     {
+        if (entity == null) throw new ArgumentNullException(nameof(entity));
+
         return Observable.FromAsync(async () =>
         {
             _dbSet.Remove(entity);
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
             return Unit.Default;
-        });
+        })
+        .Catch(Observable.Return(Unit.Default));
     }
 }
