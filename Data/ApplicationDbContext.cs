@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     }
     
     public DbSet<Servicio>? Servicio { get; set; }
+    public DbSet<ServicioConfiguracion>? ServicioConfiguracion { get; set; }
 
     public override int SaveChanges()
     {

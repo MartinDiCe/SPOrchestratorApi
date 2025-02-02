@@ -58,18 +58,26 @@ public class RepositoryBase<T> : IRepository<T> where T : class
         if (entity == null) throw new ArgumentNullException(nameof(entity));
 
         return Observable.FromAsync(async () =>
-        {
-            await _dbSet.AddAsync(entity);
-            await Context.SaveChangesAsync();
-            return entity;
-        })
-        .Catch<T, Exception>(ex =>
-        {
-            Console.WriteLine($"Error en AddAsync: {ex.Message}");
-            return Observable.Throw<T>(ex);
-        });
-    }
+            {
+                // Verifica si la entidad ya existe antes de insertarla
+                var existingEntity = await _dbSet.FindAsync(entity);
 
+                if (existingEntity != null)
+                {
+                    throw new InvalidOperationException("La entidad ya existe en la base de datos.");
+                }
+
+                await _dbSet.AddAsync(entity);
+                await Context.SaveChangesAsync();
+                return entity;
+            })
+            .Catch<T, Exception>(ex =>
+            {
+                Console.WriteLine($"Error en AddAsync: {ex.Message}");
+                return Observable.Throw<T>(ex);
+            });
+    }
+    
     /// <summary>
     /// Actualiza un registro existente en la base de datos de manera reactiva.
     /// </summary>

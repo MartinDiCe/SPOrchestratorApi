@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SPOrchestratorAPI.Data;
+﻿using SPOrchestratorAPI.Data;
 
 namespace SPOrchestratorAPI.Configuration;
 

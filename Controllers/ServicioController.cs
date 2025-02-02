@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services;
 using System.Reactive.Linq;
+using SPOrchestratorAPI.Models.DTOs;
 
 namespace SPOrchestratorAPI.Controllers;
 
@@ -49,9 +49,9 @@ public class ServicioController(IServicioService servicioService) : ControllerBa
     /// Crea un nuevo servicio.
     /// </summary>
     [HttpPost("create")]
-    public IObservable<IActionResult> Create([FromBody] Servicio servicio)
+    public IObservable<IActionResult> Create([FromBody] CreateServicioDto createServicioDto)
     {
-        return servicioService.CreateAsync(servicio)
+        return servicioService.CreateAsync(createServicioDto)
             .Select(createdService => CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService) as IActionResult)
             .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
     }
@@ -60,7 +60,7 @@ public class ServicioController(IServicioService servicioService) : ControllerBa
     /// Actualiza un servicio existente.
     /// </summary>
     [HttpPut("update/{id}")]
-    public IObservable<IActionResult> Update(int id, [FromBody] Servicio servicio)
+    public IObservable<IActionResult> Update(int id, [FromBody] UpdateServicioDto servicio)
     {
         if (id != servicio.Id)
         {

@@ -19,7 +19,7 @@ public class ServicioRepository(ApplicationDbContext context) : RepositoryBase<S
     public IObservable<IEnumerable<Servicio>> GetActiveServicesAsync()
     {
         return Observable.FromAsync(async () =>
-            await Context.Set<Servicio>()  // 🔹 Usa 'Context' en lugar de '_context'
+            await Context.Set<Servicio>()  
                 .Where(s => s.Status == true && s.Deleted == false)
                 .ToListAsync());
     }

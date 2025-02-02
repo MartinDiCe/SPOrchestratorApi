@@ -3,17 +3,20 @@ using System.Reactive.Linq;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories;
 using SPOrchestratorAPI.Exceptions;
+using SPOrchestratorAPI.Models.DTOs;
+
 
 namespace SPOrchestratorAPI.Services;
 
 /// <summary>
 /// Implementación del servicio para la gestión de configuraciones de servicios.
 /// </summary>
-public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> servicioConfiguracionRepository)
+public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> servicioConfiguracionRepository, 
+    IRepository<Servicio> servicioRepository)
     : IServicioConfiguracionService
 {
     /// <inheritdoc />
-    public IObservable<IEnumerable<ServicioConfiguracion>> GetAllAsync()
+    public IObservable<IEnumerable<ServicioConfiguracionDtoResponse>> GetAllAsync()
     {
         return servicioConfiguracionRepository.GetAllAsync(sc => !sc.Deleted)
             .Select(configs =>
@@ -23,39 +26,122 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
                 {
                     throw new NotFoundException("No se encontraron configuraciones de servicios.");
                 }
-                return configList;
+                return configList.Select(config => new ServicioConfiguracionDtoResponse
+                {
+                    Id = config.Id,
+                    ServicioId = config.ServicioId,
+                    NombreProcedimiento = config.NombreProcedimiento,
+                    ConexionBaseDatos = config.ConexionBaseDatos,
+                    Parametros = config.Parametros ?? string.Empty,
+                    MaxReintentos = config.MaxReintentos,
+                    TimeoutSegundos = config.TimeoutSegundos,
+                    CreatedAt = config.CreatedAt,
+                    CreatedBy = config.CreatedBy,
+                    UpdatedAt = config.UpdatedAt,
+                    UpdatedBy = config.UpdatedBy ?? "Desconocido",
+                    Deleted = config.Deleted,
+                    DeletedAt = config.DeletedAt,
+                    DeletedBy = config.DeletedBy ?? "Desconocido"
+                }).ToList();
             })
-            .Catch<IEnumerable<ServicioConfiguracion>, Exception>(ex => Observable.Throw<IEnumerable<ServicioConfiguracion>>(ex));
+            .Catch<IEnumerable<ServicioConfiguracionDtoResponse>, Exception>(ex => Observable.Throw<IEnumerable<ServicioConfiguracionDtoResponse>>(ex));
     }
 
     /// <inheritdoc />
-    public IObservable<ServicioConfiguracion> GetByServicioIdAsync(int servicioId)
+    public IObservable<ServicioConfiguracionDtoResponse> GetByServicioIdAsync(int servicioId)
     {
         return servicioConfiguracionRepository.GetByIdAsync(servicioId)
-            .Select(config => config ?? throw new NotFoundException($"No se encontró la configuración para el servicio con ID {servicioId}."))
-            .Catch<ServicioConfiguracion, Exception>(ex => Observable.Throw<ServicioConfiguracion>(ex));
+            .Select(config =>
+            {
+                if (config == null)
+                {
+                    throw new NotFoundException($"No se encontró la configuración para el servicio con ID {servicioId}.");
+                }
+                return new ServicioConfiguracionDtoResponse
+                {
+                    Id = config.Id,
+                    ServicioId = config.ServicioId,
+                    NombreProcedimiento = config.NombreProcedimiento,
+                    ConexionBaseDatos = config.ConexionBaseDatos,
+                    Parametros = config.Parametros ?? string.Empty,
+                    MaxReintentos = config.MaxReintentos,
+                    TimeoutSegundos = config.TimeoutSegundos,
+                    CreatedAt = config.CreatedAt,
+                    CreatedBy = config.CreatedBy,
+                    UpdatedAt = config.UpdatedAt,
+                    UpdatedBy = config.UpdatedBy ?? "Desconocido",
+                    Deleted = config.Deleted,
+                    DeletedAt = config.DeletedAt,
+                    DeletedBy = config.DeletedBy ?? "Desconocido"
+                };
+            })
+            .Catch<ServicioConfiguracionDtoResponse, Exception>(ex => Observable.Throw<ServicioConfiguracionDtoResponse>(ex));
     }
 
     /// <inheritdoc />
-    public IObservable<ServicioConfiguracion> CreateAsync(ServicioConfiguracion config)
+    public IObservable<ServicioConfiguracionDtoResponse> CreateAsync(CreateServicioConfiguracionDto configDto)
     {
         return Observable.FromAsync(async () =>
-        {
-            if (string.IsNullOrEmpty(config.NombreProcedimiento))
             {
-                throw new ArgumentException("El nombre del procedimiento es obligatorio.");
-            }
-            return await servicioConfiguracionRepository.AddAsync(config);
+                if (string.IsNullOrEmpty(configDto.NombreProcedimiento))
+                {
+                    throw new ArgumentException("El nombre del procedimiento es obligatorio.");
+                }
+
+                var servicio = await servicioRepository.GetByIdAsync(configDto.ServicioId)
+                    .FirstOrDefaultAsync(); 
+
+                if (servicio == null)
+                {
+                    throw new NotFoundException($"No se encontró el servicio con ID {configDto.ServicioId}.");
+                }
+
+                var config = new ServicioConfiguracion
+                {
+                    ServicioId = configDto.ServicioId,
+                    NombreProcedimiento = configDto.NombreProcedimiento,
+                    ConexionBaseDatos = configDto.ConexionBaseDatos,
+                    Parametros = configDto.Parametros,
+                    MaxReintentos = configDto.MaxReintentos,
+                    TimeoutSegundos = configDto.TimeoutSegundos,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System",
+                    Servicio = servicio // 🔥 Asigna el servicio antes de guardar
+                };
+
+                var createdConfig = await servicioConfiguracionRepository.AddAsync(config);
+
+                return new ServicioConfiguracionDtoResponse
+                {
+                    Id = createdConfig.Id,
+                    ServicioId = createdConfig.ServicioId,
+                    NombreProcedimiento = createdConfig.NombreProcedimiento,
+                    ConexionBaseDatos = createdConfig.ConexionBaseDatos,
+                    Parametros = createdConfig.Parametros ?? string.Empty,
+                    MaxReintentos = createdConfig.MaxReintentos,
+                    TimeoutSegundos = createdConfig.TimeoutSegundos,
+                    CreatedAt = createdConfig.CreatedAt,
+                    CreatedBy = createdConfig.CreatedBy
+                };
         })
-        .Catch<ServicioConfiguracion, Exception>(ex => Observable.Throw<ServicioConfiguracion>(ex));
+        .Catch<ServicioConfiguracionDtoResponse, Exception>(ex => Observable.Throw<ServicioConfiguracionDtoResponse>(ex));
     }
 
     /// <inheritdoc />
-    public IObservable<Unit> UpdateAsync(ServicioConfiguracion config)
+    public IObservable<Unit> UpdateAsync(UpdateServicioConfiguracionDto configDto)
     {
-        return GetByServicioIdAsync(config.ServicioId)
-            .SelectMany(_ =>
+        return servicioConfiguracionRepository.GetByIdAsync(configDto.ServicioId)
+            .SelectMany(config =>
             {
+                if (config == null)
+                {
+                    throw new NotFoundException($"No se encontró la configuración para el servicio con ID {configDto.ServicioId}.");
+                }
+                config.NombreProcedimiento = configDto.NombreProcedimiento;
+                config.ConexionBaseDatos = configDto.ConexionBaseDatos;
+                config.Parametros = configDto.Parametros;
+                config.MaxReintentos = configDto.MaxReintentos;
+                config.TimeoutSegundos = configDto.TimeoutSegundos;
                 config.UpdatedAt = DateTime.UtcNow;
                 config.UpdatedBy = "System";
                 return servicioConfiguracionRepository.UpdateAsync(config).Select(_ => Unit.Default);
@@ -66,9 +152,13 @@ public class ServicioConfiguracionService(IRepository<ServicioConfiguracion> ser
     /// <inheritdoc />
     public IObservable<Unit> DeleteBySystemAsync(int id)
     {
-        return GetByServicioIdAsync(id)
+        return servicioConfiguracionRepository.GetByIdAsync(id)
             .SelectMany(config =>
             {
+                if (config == null)
+                {
+                    throw new NotFoundException($"No se encontró la configuración para el servicio con ID {id}.");
+                }
                 config.Deleted = true;
                 config.DeletedAt = DateTime.UtcNow;
                 config.DeletedBy = "System";

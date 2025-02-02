@@ -3,6 +3,7 @@ using System.Reactive.Linq;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories;
 using SPOrchestratorAPI.Exceptions;
+using SPOrchestratorAPI.Models.DTOs;
 
 namespace SPOrchestratorAPI.Services;
 
@@ -45,29 +46,51 @@ public class ServicioService(IRepository<Servicio> servicioRepository) : IServic
     }
 
     /// <inheritdoc />
-    public IObservable<Servicio> CreateAsync(Servicio servicio)
+    public IObservable<Servicio> CreateAsync(CreateServicioDto servicioDto)
     {
         return Observable.FromAsync(async () =>
         {
-            if (string.IsNullOrEmpty(servicio.Name))
+            if (string.IsNullOrEmpty(servicioDto.Name))
             {
                 throw new ArgumentException("El nombre del servicio es obligatorio.");
             }
+            
+            // Verifica si ya existe un servicio con el mismo nombre
+            var existingService = await servicioRepository.GetAllAsync(s => s.Name == servicioDto.Name)
+                .FirstOrDefaultAsync();
+
+            if (existingService != null)
+            {
+                throw new InvalidOperationException($"Ya existe un servicio con el nombre '{servicioDto.Name}'.");
+            }
+
+            var servicio = new Servicio
+            {
+                Name = servicioDto.Name,
+                Description = servicioDto.Description,
+                Status = servicioDto.Status,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+
             return await servicioRepository.AddAsync(servicio);
         })
         .Catch<Servicio, Exception>(ex => Observable.Throw<Servicio>(ex));
     }
 
     /// <inheritdoc />
-    public IObservable<Unit> UpdateAsync(Servicio servicio)
+    public IObservable<Unit> UpdateAsync(UpdateServicioDto servicioDto)
     {
-        return GetByIdAsync(servicio.Id)
-            .SelectMany(_ =>
-            {
-                servicio.UpdatedAt = DateTime.UtcNow;
-                servicio.UpdatedBy = "System";
-                return servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
-            })
+        return GetByIdAsync(servicioDto.Id)
+                .SelectMany(servicio =>
+                {
+                    servicio.Name = servicioDto.Name;
+                    servicio.Description = servicioDto.Description;
+                    servicio.Status = servicioDto.Status;
+                    servicio.UpdatedAt = DateTime.UtcNow;
+                    servicio.UpdatedBy = "System";
+                    return servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
+                })
             .Catch<Unit, Exception>(ex => Observable.Throw<Unit>(ex));
     }
 

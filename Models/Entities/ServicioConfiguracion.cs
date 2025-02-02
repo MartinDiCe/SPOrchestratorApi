@@ -18,7 +18,7 @@ public class ServicioConfiguracion : AuditEntities
     public int ServicioId { get; set; }
 
     [ForeignKey("ServicioId")]
-    public Servicio Servicio { get; set; }
+    public required Servicio Servicio { get; set; }
 
     [Required]
     [MaxLength(200)]

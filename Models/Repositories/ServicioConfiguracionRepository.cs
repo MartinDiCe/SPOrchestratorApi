@@ -17,7 +17,7 @@ public class ServicioConfiguracionRepository(ApplicationDbContext context)
     public IObservable<ServicioConfiguracion?> GetByServicioIdAsync(int servicioId)
     {
         return Observable.FromAsync(() =>
-            context.Set<ServicioConfiguracion>()
+            Context.Set<ServicioConfiguracion>()
                 .FirstOrDefaultAsync(sc => sc.ServicioId == servicioId && !sc.Deleted));
     }
 }

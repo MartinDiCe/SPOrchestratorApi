@@ -1,4 +1,5 @@
 ﻿using System.Reactive;
+using SPOrchestratorAPI.Models.DTOs;
 using SPOrchestratorAPI.Models.Entities;
 
 namespace SPOrchestratorAPI.Services;
@@ -26,12 +27,12 @@ public interface IServicioService
     /// <summary>
     /// Crea un nuevo servicio de manera reactiva.
     /// </summary>
-    IObservable<Servicio> CreateAsync(Servicio servicio);
+    IObservable<Servicio> CreateAsync(CreateServicioDto servicio);
 
     /// <summary>
     /// Actualiza un servicio existente de manera reactiva.
     /// </summary>
-    IObservable<Unit> UpdateAsync(Servicio servicio);
+    IObservable<Unit> UpdateAsync(UpdateServicioDto servicio);
 
     /// <summary>
     /// Cambia el estado de un servicio de manera reactiva.
