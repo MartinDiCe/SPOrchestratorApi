@@ -41,7 +41,7 @@ public static class SwaggerConfig
             app.UseSwaggerUI(options =>
             {
                 options.SwaggerEndpoint("/swagger/v1/swagger.json", "SPOrchestratorAPI v1");
-                options.RoutePrefix = string.Empty; 
+                options.RoutePrefix = "swagger"; 
             });
         }
     }

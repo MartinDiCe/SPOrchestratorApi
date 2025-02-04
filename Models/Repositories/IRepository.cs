@@ -29,4 +29,5 @@ public interface IRepository<T> where T : class
     /// Elimina un registro de la base de datos de manera reactiva.
     /// </summary>
     IObservable<Unit> DeleteAsync(T entity);
+    
 }

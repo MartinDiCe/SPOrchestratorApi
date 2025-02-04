@@ -48,4 +48,5 @@ public interface IServicioService
     /// Restaura un servicio eliminado de manera reactiva.
     /// </summary>
     IObservable<Unit> RestoreBySystemAsync(int id);
+
 }

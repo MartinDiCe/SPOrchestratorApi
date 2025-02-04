@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SPOrchestratorAPI.Services;
 using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using SPOrchestratorAPI.Models.DTOs;
 
 namespace SPOrchestratorAPI.Controllers;
@@ -49,11 +50,25 @@ public class ServicioController(IServicioService servicioService) : ControllerBa
     /// Crea un nuevo servicio.
     /// </summary>
     [HttpPost("create")]
-    public IObservable<IActionResult> Create([FromBody] CreateServicioDto createServicioDto)
+    public async Task<IActionResult> Create([FromBody] CreateServicioDto createServicioDto)
     {
-        return servicioService.CreateAsync(createServicioDto)
-            .Select(createdService => CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService) as IActionResult)
-            .Catch<IActionResult, Exception>(ex => Observable.Return(StatusCode(500, new { mensaje = ex.Message }) as IActionResult));
+        Console.WriteLine("Controlador: Iniciando creación del servicio...");
+    
+        try
+        {
+            // Aquí se hace la conversión reactiva correctamente
+            var createdService = await servicioService.CreateAsync(createServicioDto)
+                .ToTask();  // Convertir el IObservable<Servicio> a Task<Servicio>
+
+            Console.WriteLine($"Controlador: Servicio creado con nombre: {createdService.Name}, ID: {createdService.Id}");
+        
+            return CreatedAtAction(nameof(GetById), new { id = createdService.Id }, createdService);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Controlador: Error al crear servicio: {ex.Message}");
+            return StatusCode(500, new { mensaje = ex.Message });
+        }
     }
 
     /// <summary>
