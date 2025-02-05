@@ -1,50 +1,23 @@
-﻿using System.Reactive;
-using SPOrchestratorAPI.Models.Entities;
+﻿using SPOrchestratorAPI.Models.Entities;
+using SPOrchestratorAPI.Models.DTOs;
 
-namespace SPOrchestratorAPI.Services;
-
-/// <summary>
-/// Interfaz para la gestión de servicios.
-/// </summary>
-public interface IServicioService
+namespace SPOrchestratorAPI.Services
 {
-    /// <summary>
-    /// Obtiene todos los servicios activos (excluyendo eliminados) de manera reactiva.
-    /// </summary>
-    IObservable<IEnumerable<Servicio>> GetAllAsync();
+    public interface IServicioService
+    {
+        /// <summary>
+        /// Crea un nuevo servicio si no existe otro con el mismo nombre (no eliminado).
+        /// </summary>
+        IObservable<Servicio> CreateAsync(CreateServicioDto dto);
 
-    /// <summary>
-    /// Obtiene un servicio por su ID de manera reactiva.
-    /// </summary>
-    IObservable<Servicio> GetByIdAsync(int id);
+        /// <summary>
+        /// Obtiene un servicio por su identificador (lanza excepción si no existe).
+        /// </summary>
+        IObservable<Servicio> GetByIdAsync(int id);
 
-    /// <summary>
-    /// Obtiene un servicio por su nombre de manera reactiva.
-    /// </summary>
-    IObservable<Servicio> GetByNameAsync(string name);
-
-    /// <summary>
-    /// Crea un nuevo servicio de manera reactiva.
-    /// </summary>
-    IObservable<Servicio> CreateAsync(Servicio servicio);
-
-    /// <summary>
-    /// Actualiza un servicio existente de manera reactiva.
-    /// </summary>
-    IObservable<Unit> UpdateAsync(Servicio servicio);
-
-    /// <summary>
-    /// Cambia el estado de un servicio de manera reactiva.
-    /// </summary>
-    IObservable<Unit> ChangeStatusAsync(int id, bool newStatus);
-
-    /// <summary>
-    /// Marca un servicio como eliminado (eliminación lógica) de manera reactiva.
-    /// </summary>
-    IObservable<Unit> DeleteBySystemAsync(int id);
-
-    /// <summary>
-    /// Restaura un servicio eliminado de manera reactiva.
-    /// </summary>
-    IObservable<Unit> RestoreBySystemAsync(int id);
+        /// <summary>
+        /// Obtiene un servicio por nombre (lanza excepción si no existe).
+        /// </summary>
+        IObservable<Servicio> GetByNameAsync(string name);
+    }
 }

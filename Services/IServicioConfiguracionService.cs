@@ -1,5 +1,5 @@
 ﻿using System.Reactive;
-using SPOrchestratorAPI.Models.Entities;
+using SPOrchestratorAPI.Models.DTOs;
 
 namespace SPOrchestratorAPI.Services;
 
@@ -11,22 +11,22 @@ public interface IServicioConfiguracionService
     /// <summary>
     /// Obtiene todas las configuraciones de servicios activas de manera reactiva.
     /// </summary>
-    IObservable<IEnumerable<ServicioConfiguracion>> GetAllAsync();
+    IObservable<IEnumerable<ServicioConfiguracionDtoResponse>> GetAllAsync();
 
     /// <summary>
     /// Obtiene la configuración de un servicio por su ID de manera reactiva.
     /// </summary>
-    IObservable<ServicioConfiguracion> GetByServicioIdAsync(int servicioId);
+    IObservable<ServicioConfiguracionDtoResponse> GetByServicioIdAsync(int servicioId);
 
     /// <summary>
     /// Crea una nueva configuración de servicio de manera reactiva.
     /// </summary>
-    IObservable<ServicioConfiguracion> CreateAsync(ServicioConfiguracion config);
+    IObservable<ServicioConfiguracionDtoResponse> CreateAsync(CreateServicioConfiguracionDto config);
 
     /// <summary>
     /// Actualiza una configuración existente de manera reactiva.
     /// </summary>
-    IObservable<Unit> UpdateAsync(ServicioConfiguracion config);
+    IObservable<Unit> UpdateAsync(UpdateServicioConfiguracionDto config);
 
     /// <summary>
     /// Marca una configuración como eliminada (eliminación lógica) de manera reactiva.
