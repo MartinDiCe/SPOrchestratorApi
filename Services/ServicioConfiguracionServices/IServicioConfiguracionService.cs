@@ -1,40 +1,48 @@
-﻿using System.Reactive;
-using SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
+﻿using SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
+using SPOrchestratorAPI.Models.Entities;
 
-namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices;
-
-/// <summary>
-/// Interfaz para el servicio de configuración de servicios.
-/// </summary>
-public interface IServicioConfiguracionService
+namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
 {
     /// <summary>
-    /// Obtiene todas las configuraciones de servicios activas de manera reactiva.
+    /// Define la lógica de negocio para la entidad <see cref="ServicioConfiguracion"/>.
     /// </summary>
-    IObservable<IEnumerable<ServicioConfiguracionDtoResponse>> GetAllAsync();
+    public interface IServicioConfiguracionService
+    {
+        /// <summary>
+        /// Obtiene una configuración por su identificador (ID), excluyendo las eliminadas.
+        /// Lanza una excepción si no existe.
+        /// </summary>
+        IObservable<ServicioConfiguracion> GetByIdAsync(int id);
 
-    /// <summary>
-    /// Obtiene la configuración de un servicio por su ID de manera reactiva.
-    /// </summary>
-    IObservable<ServicioConfiguracionDtoResponse> GetByServicioIdAsync(int servicioId);
+        /// <summary>
+        /// Crea una nueva configuración de servicio a partir del DTO.
+        /// </summary>
+        IObservable<ServicioConfiguracion> CreateAsync(CreateServicioConfiguracionDto dto);
 
-    /// <summary>
-    /// Crea una nueva configuración de servicio de manera reactiva.
-    /// </summary>
-    IObservable<ServicioConfiguracionDtoResponse> CreateAsync(CreateServicioConfiguracionDto config);
+        /// <summary>
+        /// Actualiza una configuración existente a partir del DTO.
+        /// </summary>
+        IObservable<ServicioConfiguracion> UpdateAsync(UpdateServicioConfiguracionDto dto);
 
-    /// <summary>
-    /// Actualiza una configuración existente de manera reactiva.
-    /// </summary>
-    IObservable<Unit> UpdateAsync(UpdateServicioConfiguracionDto config);
+        /// <summary>
+        /// Marca una configuración como eliminada (soft delete).
+        /// </summary>
+        IObservable<ServicioConfiguracion> SoftDeleteAsync(int id);
 
-    /// <summary>
-    /// Marca una configuración como eliminada (eliminación lógica) de manera reactiva.
-    /// </summary>
-    IObservable<Unit> DeleteBySystemAsync(int id);
+        /// <summary>
+        /// Restaura una configuración que fue previamente marcada como eliminada.
+        /// </summary>
+        IObservable<ServicioConfiguracion> RestoreAsync(int id);
 
-    /// <summary>
-    /// Restaura una configuración eliminada de manera reactiva.
-    /// </summary>
-    IObservable<Unit> RestoreBySystemAsync(int id);
+        /// <summary>
+        /// Obtiene todas las configuraciones que no estén eliminadas.
+        /// </summary>
+        IObservable<IList<ServicioConfiguracion>> GetAllAsync();
+
+        /// <summary>
+        /// Obtiene las configuraciones asociadas a un <see cref="Servicio"/> específico (por ID),
+        /// excluyendo configuraciones eliminadas.
+        /// </summary>
+        IObservable<IList<ServicioConfiguracion>> GetByServicioIdAsync(int servicioId);
+    }
 }

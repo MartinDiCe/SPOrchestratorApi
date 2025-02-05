@@ -73,7 +73,7 @@ public class ServicioService : IServicioService
                         Description = servicioDto.Description,
                         Status = servicioDto.Status,
                         CreatedAt = DateTime.UtcNow,
-                        CreatedBy = "System" // O tu usuario actual
+                        CreatedBy = "System" 
                     };
                     
                     return _servicioRepository.AddAsync(servicio);
