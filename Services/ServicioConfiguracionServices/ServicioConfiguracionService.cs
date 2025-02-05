@@ -44,8 +44,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
             return _executor.ExecuteAsync(() =>
             {
                 _logger.LogInfo("Creando nueva configuración de servicio...");
-
-                // Validaciones sencillas
+                
                 if (dto.ServicioId <= 0)
                 {
                     throw new ArgumentException("El ServicioId debe ser mayor a 0.", nameof(dto.ServicioId));
@@ -54,8 +53,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                 {
                     throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
                 }
-
-                // Primero, validar que el servicio exista.
+                
                 return _servicioService.GetByIdAsync(dto.ServicioId)
                     .SelectMany(servicioExistente =>
                     {
@@ -64,25 +62,35 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                             throw new ArgumentException($"El servicio con ID {dto.ServicioId} no existe.");
                         }
 
-                        // Se utiliza la instancia existente del servicio para la configuración
-                        var config = new ServicioConfiguracion
-                        {
-                            ServicioId = dto.ServicioId,
-                            NombreProcedimiento = dto.NombreProcedimiento,
-                            ConexionBaseDatos = dto.ConexionBaseDatos,
-                            Parametros = dto.Parametros,
-                            MaxReintentos = dto.MaxReintentos,
-                            TimeoutSegundos = dto.TimeoutSegundos,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = "System",
-                            Servicio = servicioExistente
-                        };
-
-                        return _repository
-                            .CreateAsync(config)
-                            .Do(created =>
+                        // Validar que no exista ya una configuración para ese servicio
+                        return _repository.GetByServicioIdAsync(dto.ServicioId)
+                            .SelectMany(existingConfigs =>
                             {
-                                _logger.LogInfo($"Configuración {created.Id} creada para el servicio {created.ServicioId}.");
+                                if (existingConfigs != null && existingConfigs.Any())
+                                {
+                                    throw new InvalidOperationException($"Ya existe una configuración para el servicio con ID {dto.ServicioId}.");
+                                }
+
+                                // Si no existe, crear la nueva configuración
+                                var config = new ServicioConfiguracion
+                                {
+                                    ServicioId = dto.ServicioId,
+                                    NombreProcedimiento = dto.NombreProcedimiento,
+                                    ConexionBaseDatos = dto.ConexionBaseDatos,
+                                    Parametros = dto.Parametros,
+                                    MaxReintentos = dto.MaxReintentos,
+                                    TimeoutSegundos = dto.TimeoutSegundos,
+                                    CreatedAt = DateTime.UtcNow,
+                                    CreatedBy = "System",
+                                    Servicio = servicioExistente
+                                };
+
+                                return _repository
+                                    .CreateAsync(config)
+                                    .Do(created =>
+                                    {
+                                        _logger.LogInfo($"Configuración {created.Id} creada para el servicio {created.ServicioId}.");
+                                    });
                             });
                     });
             });

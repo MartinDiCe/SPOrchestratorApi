@@ -3,9 +3,11 @@ using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Middleware;
+using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
 using SPOrchestratorAPI.Services.AuditServices;
 using SPOrchestratorAPI.Services.LoggingServices;
+using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -48,9 +50,11 @@ builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
 // si deseas logs con la categoría 'ServicioRepository' en particular)
 builder.Services.AddScoped<ILoggerService<ServicioRepository>, LoggerService<ServicioRepository>>();
 builder.Services.AddScoped<IServicioRepository, ServicioRepository>();
+builder.Services.AddScoped<IServicioConfiguracionRepository, ServicioConfiguracionRepository>();
 
 // Servicio de dominio para la entidad "Servicio"
 builder.Services.AddScoped<IServicioService, ServicioService>();
+builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
 
 // ---------------------------------------------------------
 // 5) Configurar logging

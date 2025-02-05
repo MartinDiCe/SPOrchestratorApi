@@ -15,7 +15,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
 {
     private readonly ApplicationDbContext _context;
     private readonly ILoggerService<ServicioConfiguracionRepository> _logger;
-    private readonly DbSet<Entities.ServicioConfiguracion> _dbSet;
+    private readonly DbSet<ServicioConfiguracion> _dbSet;
     private readonly IServiceExecutor _serviceExecutor;
 
     public ServicioConfiguracionRepository(
@@ -25,11 +25,11 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _dbSet = _context.Set<Entities.ServicioConfiguracion>();
+        _dbSet = _context.Set<ServicioConfiguracion>();
         _serviceExecutor = serviceExecutor ?? throw new ArgumentNullException(nameof(serviceExecutor));
     }
 
-    public IObservable<Entities.ServicioConfiguracion> GetByIdAsync(int id)
+    public IObservable<ServicioConfiguracion> GetByIdAsync(int id)
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
@@ -51,7 +51,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         });
     }
 
-    public IObservable<Entities.ServicioConfiguracion> CreateAsync(Entities.ServicioConfiguracion config)
+    public IObservable<ServicioConfiguracion> CreateAsync(ServicioConfiguracion config)
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
@@ -67,7 +67,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         });
     }
 
-    public IObservable<Entities.ServicioConfiguracion> UpdateAsync(Entities.ServicioConfiguracion config)
+    public IObservable<ServicioConfiguracion> UpdateAsync(ServicioConfiguracion config)
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
@@ -107,7 +107,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         });
     }
 
-    public IObservable<Entities.ServicioConfiguracion> SoftDeleteAsync(int id)
+    public IObservable<ServicioConfiguracion> SoftDeleteAsync(int id)
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
@@ -133,7 +133,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         });
     }
 
-    public IObservable<Entities.ServicioConfiguracion> RestoreAsync(int id)
+    public IObservable<ServicioConfiguracion> RestoreAsync(int id)
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
@@ -159,7 +159,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         });
     }
 
-    public IObservable<IList<Entities.ServicioConfiguracion>> GetAllAsync()
+    public IObservable<IList<ServicioConfiguracion>> GetAllAsync()
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
@@ -177,7 +177,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         });
     }
 
-    public IObservable<IList<Entities.ServicioConfiguracion>> GetByServicioIdAsync(int servicioId)
+    public IObservable<IList<ServicioConfiguracion>> GetByServicioIdAsync(int servicioId)
     {
         return _serviceExecutor.ExecuteAsync(() =>
         {
