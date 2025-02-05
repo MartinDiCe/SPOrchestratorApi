@@ -73,5 +73,96 @@ namespace SPOrchestratorAPI.Controllers
 
             return Ok(service);
         }
+        
+        /// <summary>
+        /// Retorna todos los servicios no eliminados (pueden estar activos o inactivos).
+        /// </summary>
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllServicesAsync()
+        {
+            var services = await _servicioService
+                .GetAllAsync()
+                .FirstAsync();
+
+            return Ok(services);
+        }
+
+        /// <summary>
+        /// Retorna todos los servicios activos (Status = true, Deleted = false).
+        /// </summary>
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActiveServicesAsync()
+        {
+            var services = await _servicioService
+                .GetActiveServicesAsync()
+                .FirstAsync();
+
+            return Ok(services);
+        }
+
+        /// <summary>
+        /// Elimina lógicamente un servicio (soft delete).
+        /// </summary>
+        [HttpPut("softdelete/{id}")]
+        public async Task<IActionResult> SoftDeleteServiceAsync(int id)
+        {
+            var deleted = await _servicioService
+                .SoftDeleteAsync(id)
+                .FirstAsync();
+
+            return Ok(deleted); // Podrías retornar NoContent() si prefieres
+        }
+
+        /// <summary>
+        /// Restaura un servicio previamente marcado como eliminado.
+        /// </summary>
+        [HttpPut("restore/{id}")]
+        public async Task<IActionResult> RestoreServiceAsync(int id)
+        {
+            var restored = await _servicioService
+                .RestoreAsync(id)
+                .FirstAsync();
+
+            return Ok(restored);
+        }
+
+        /// <summary>
+        /// Inactiva un servicio, estableciendo <c>Status = false</c>.
+        /// </summary>
+        [HttpPut("deactivate/{id}")]
+        public async Task<IActionResult> DeactivateServiceAsync(int id)
+        {
+            var deactivated = await _servicioService
+                .DeactivateAsync(id)
+                .FirstAsync();
+
+            return Ok(deactivated);
+        }
+
+        /// <summary>
+        /// Activa un servicio, estableciendo <c>Status = true</c>.
+        /// </summary>
+        [HttpPut("activate/{id}")]
+        public async Task<IActionResult> ActivateServiceAsync(int id)
+        {
+            var activated = await _servicioService
+                .ActivateAsync(id)
+                .FirstAsync();
+
+            return Ok(activated);
+        }
+
+        /// <summary>
+        /// Actualiza un servicio existente.
+        /// </summary>
+        [HttpPut("update")]
+        public async Task<IActionResult> UpdateServiceAsync([FromBody] UpdateServicioDto dto)
+        {
+            var updated = await _servicioService
+                .UpdateAsync(dto)
+                .FirstAsync();
+            
+            return Ok(updated);
+        }
     }
 }

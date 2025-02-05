@@ -15,6 +15,7 @@ namespace SPOrchestratorAPI.Services
         private readonly IServicioRepository _servicioRepository;
         private readonly ILoggerService<ServicioService> _logger;
         private readonly IServiceExecutor _serviceExecutor;
+        private IServicioService _servicioServiceImplementation;
 
         /// <summary>
         /// Constructor de la clase <see cref="ServicioService"/>.
@@ -122,6 +123,138 @@ namespace SPOrchestratorAPI.Services
             {
                 _logger.LogInfo($"Buscando servicio con el nombre '{name}' (excluyendo registros eliminados).");
                 return _servicioRepository.GetByNameAsync(name);
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<IList<Servicio>> GetAllAsync()
+        {
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo("Obteniendo TODOS los servicios no eliminados (aunque podrían estar inactivos).");
+                return _servicioRepository.GetAllAsync();
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<IList<Servicio>> GetActiveServicesAsync()
+        {
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo("Obteniendo servicios activos (Status=true, !Deleted).");
+                return _servicioRepository.GetActiveServicesAsync();
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> SoftDeleteAsync(int id)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("El ID debe ser mayor que 0 para eliminar.", nameof(id));
+            }
+
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo($"Solicitando eliminación lógica del servicio con ID {id}.");
+                return _servicioRepository
+                    .SoftDeleteAsync(id)
+                    .Do(deleted => 
+                    {
+                        _logger.LogInfo($"Servicio con ID {deleted.Id} marcado como eliminado (soft delete).");
+                    });
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> RestoreAsync(int id)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("El ID debe ser mayor que 0 para restaurar.", nameof(id));
+            }
+
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo($"Restaurando el servicio con ID {id}.");
+                return _servicioRepository
+                    .RestoreAsync(id)
+                    .Do(restored =>
+                    {
+                        _logger.LogInfo($"Servicio con ID {restored.Id} restaurado correctamente (Deleted=false).");
+                    });
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> DeactivateAsync(int id)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("El ID debe ser mayor que 0 para inactivarlo.", nameof(id));
+            }
+
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo($"Inactivando el servicio con ID {id}.");
+                return _servicioRepository
+                    .DeactivateAsync(id)
+                    .Do(deactivated =>
+                    {
+                        _logger.LogInfo($"Servicio con ID {deactivated.Id} inactivado (Status=false).");
+                    });
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> ActivateAsync(int id)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("El ID debe ser mayor que 0 para activarlo.", nameof(id));
+            }
+
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo($"Activando el servicio con ID {id}.");
+                return _servicioRepository
+                    .ActivateAsync(id)
+                    .Do(activated =>
+                    {
+                        _logger.LogInfo($"Servicio con ID {activated.Id} activado (Status=true).");
+                    });
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> UpdateAsync(UpdateServicioDto dto)
+        {
+            if (dto.Id <= 0)
+            {
+                throw new ArgumentException("El ID debe ser mayor que 0 para actualizar.", nameof(dto.Id));
+            }
+            if (string.IsNullOrWhiteSpace(dto.Name))
+            {
+                throw new ArgumentException("El nombre del servicio es obligatorio.", nameof(dto.Name));
+            }
+
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo($"Actualizando el servicio con ID {dto.Id}.");
+                
+                var servicioToUpdate = new Servicio
+                {
+                    Id = dto.Id,
+                    Name = dto.Name,
+                    Description = dto.Description,
+                    Status = dto.Status
+                };
+                
+                return _servicioRepository.UpdateAsync(servicioToUpdate)
+                    .Do(updated =>
+                    {
+                        _logger.LogInfo($"Servicio con ID {updated.Id} se actualizó correctamente en la BD.");
+                    });
             });
         }
     }
