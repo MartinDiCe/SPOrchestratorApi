@@ -2,63 +2,62 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using SPOrchestratorAPI.Models.Base;
 
-namespace SPOrchestratorAPI.Models.Entities
+namespace SPOrchestratorAPI.Models.Entities;
+
+/// <summary>
+/// Representa la configuración necesaria para que un 
+/// <see cref="Servicio"/> ejecute un Stored Procedure específico.
+/// </summary>
+[Table("ServicioConfiguracion")]
+public class ServicioConfiguracion : AuditEntities
 {
     /// <summary>
-    /// Representa la configuración necesaria para que un 
-    /// <see cref="Servicio"/> ejecute un Stored Procedure específico.
+    /// Identificador único de la configuración.
+    /// Generado automáticamente por la base de datos.
     /// </summary>
-    [Table("ServicioConfiguracion")]
-    public class ServicioConfiguracion : AuditEntities
-    {
-        /// <summary>
-        /// Identificador único de la configuración.
-        /// Generado automáticamente por la base de datos.
-        /// </summary>
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
 
-        /// <summary>
-        /// Identificador del <see cref="Servicio"/> asociado.
-        /// </summary>
-        [Required]
-        public int ServicioId { get; set; }
+    /// <summary>
+    /// Identificador del <see cref="Servicio"/> asociado.
+    /// </summary>
+    [Required]
+    public int ServicioId { get; set; }
 
-        /// <summary>
-        /// Referencia de navegación al <see cref="Servicio"/> asociado,
-        /// establecida mediante la clave foránea <see cref="ServicioId"/>.
-        /// </summary>
-        [ForeignKey(nameof(ServicioId))]
-        public required Servicio Servicio { get; set; }
+    /// <summary>
+    /// Referencia de navegación al <see cref="Servicio"/> asociado,
+    /// establecida mediante la clave foránea <see cref="ServicioId"/>.
+    /// </summary>
+    [ForeignKey(nameof(ServicioId))]
+    public required Servicio Servicio { get; set; }
 
-        /// <summary>
-        /// Nombre del procedimiento almacenado (Stored Procedure) que el servicio ejecutará.
-        /// </summary>
-        [Required]
-        [MaxLength(200)]
-        public string NombreProcedimiento { get; set; } = string.Empty;
+    /// <summary>
+    /// Nombre del procedimiento almacenado (Stored Procedure) que el servicio ejecutará.
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string NombreProcedimiento { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Cadena de conexión a la base de datos donde se ubica el procedimiento almacenado.
-        /// </summary>
-        [Required]
-        public string ConexionBaseDatos { get; set; } = string.Empty;
+    /// <summary>
+    /// Cadena de conexión a la base de datos donde se ubica el procedimiento almacenado.
+    /// </summary>
+    [Required]
+    public string ConexionBaseDatos { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Parámetros opcionales (en formato JSON) requeridos para el Stored Procedure.
-        /// Puede ser nulo si el SP no requiere parámetros o se gestionan externamente.
-        /// </summary>
-        public string? Parametros { get; set; }
+    /// <summary>
+    /// Parámetros opcionales (en formato JSON) requeridos para el Stored Procedure.
+    /// Puede ser nulo si el SP no requiere parámetros o se gestionan externamente.
+    /// </summary>
+    public string? Parametros { get; set; }
 
-        /// <summary>
-        /// Número máximo de reintentos permitido antes de marcar la ejecución como fallida.
-        /// </summary>
-        public int MaxReintentos { get; set; } = 3;
+    /// <summary>
+    /// Número máximo de reintentos permitido antes de marcar la ejecución como fallida.
+    /// </summary>
+    public int MaxReintentos { get; set; } = 3;
 
-        /// <summary>
-        /// Tiempo máximo de espera (en segundos) antes de cancelar la ejecución del procedimiento.
-        /// </summary>
-        public int TimeoutSegundos { get; set; } = 30;
-    }
+    /// <summary>
+    /// Tiempo máximo de espera (en segundos) antes de cancelar la ejecución del procedimiento.
+    /// </summary>
+    public int TimeoutSegundos { get; set; } = 30;
 }

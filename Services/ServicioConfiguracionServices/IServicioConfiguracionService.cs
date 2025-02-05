@@ -1,7 +1,7 @@
 ﻿using System.Reactive;
-using SPOrchestratorAPI.Models.DTOs;
+using SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
 
-namespace SPOrchestratorAPI.Services;
+namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 
 /// <summary>
 /// Interfaz para el servicio de configuración de servicios.

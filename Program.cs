@@ -3,9 +3,10 @@ using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Middleware;
-using SPOrchestratorAPI.Models.Repositories;
-using SPOrchestratorAPI.Services;
-using SPOrchestratorAPI.Services.Logging;
+using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
+using SPOrchestratorAPI.Services.AuditServices;
+using SPOrchestratorAPI.Services.LoggingServices;
+using SPOrchestratorAPI.Services.ServicioServices;
 
 var builder = WebApplication.CreateBuilder(args);
 

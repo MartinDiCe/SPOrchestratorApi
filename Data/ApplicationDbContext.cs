@@ -2,6 +2,7 @@
 using SPOrchestratorAPI.Models.Base;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services;
+using SPOrchestratorAPI.Services.AuditServices;
 
 namespace SPOrchestratorAPI.Data;
 
