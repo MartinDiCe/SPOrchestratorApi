@@ -1,48 +1,70 @@
 ﻿using System.Reflection;
 using Microsoft.OpenApi.Models;
 
-namespace SPOrchestratorAPI.Configuration;
-
-public static class SwaggerConfig
+namespace SPOrchestratorAPI.Configuration
 {
-    public static void AddSwaggerConfiguration(this IServiceCollection services)
+    /// <summary>
+    /// Clase estática que agrega y configura Swagger 
+    /// para documentar la API.
+    /// </summary>
+    public static class SwaggerConfig
     {
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(options =>
+        /// <summary>
+        /// Agrega los servicios de Swagger y Endpoints de API a la colección de servicios,
+        /// configurando la documentación básica.
+        /// </summary>
+        /// <param name="services">
+        /// Colección de servicios de la aplicación.
+        /// </param>
+        public static void AddSwaggerConfiguration(this IServiceCollection services)
         {
-            options.SwaggerDoc("v1", new OpenApiInfo
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen(options =>
             {
-                Title = "SPOrchestratorAPI",
-                Version = "0.0.0.1",
-                Description = "API para la ejecución de Stored Procedures dinámicos",
-                Contact = new OpenApiContact
+                // Documento base (v1)
+                options.SwaggerDoc("v1", new OpenApiInfo
                 {
-                    Name = "Mdice",
-                    Email = "mdice@diceprojects.com",
-                    Url = new Uri("https://github.com/MartinDiCe/SPOrchestratorApi")
+                    Title = "SPOrchestratorAPI",
+                    Version = "0.0.0.1",
+                    Description = "API para la ejecución de Stored Procedures dinámicos",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "Mdice",
+                        Email = "mdice@diceprojects.com",
+                        Url = new Uri("https://github.com/MartinDiCe/SPOrchestratorApi")
+                    }
+                });
+
+                // Incluir comentarios XML si están habilitados en el proyecto
+                var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+                if (File.Exists(xmlPath))
+                {
+                    options.IncludeXmlComments(xmlPath);
                 }
             });
+        }
 
-            // Habilitar XML Comments si están activados en el csproj
-            var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
-            if (File.Exists(xmlPath))
-            {
-                options.IncludeXmlComments(xmlPath);
-            }
-        });
-    }
-
-    public static void UseSwaggerConfiguration(this WebApplication app)
-    {
-        if (app.Environment.IsDevelopment())
+        /// <summary>
+        /// Activa Swagger y su interfaz de usuario en tiempo de ejecución,
+        /// comúnmente usado en entornos de desarrollo.
+        /// </summary>
+        /// <param name="app">
+        /// Instancia de <see cref="WebApplication"/> que define el pipeline de la aplicación.
+        /// </param>
+        public static void UseSwaggerConfiguration(this WebApplication app)
         {
-            app.UseSwagger();
-            app.UseSwaggerUI(options =>
+            if (app.Environment.IsDevelopment())
             {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "SPOrchestratorAPI v1");
-                options.RoutePrefix = "swagger"; 
-            });
+                app.UseSwagger();
+                app.UseSwaggerUI(options =>
+                {
+                    // Indica la ruta del archivo swagger.json
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "SPOrchestratorAPI v1");
+                    // Define el path donde se sirve la UI de Swagger
+                    options.RoutePrefix = "swagger";
+                });
+            }
         }
     }
 }

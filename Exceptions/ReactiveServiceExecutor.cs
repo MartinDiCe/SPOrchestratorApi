@@ -1,57 +1,65 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Reactive.Linq;
 using SPOrchestratorAPI.Services.Logging;
-using System.Reactive.Linq;
 
 namespace SPOrchestratorAPI.Exceptions
 {
     /// <summary>
-    /// Implementación de IServiceExecutor para ejecutar acciones y manejar errores de manera reactiva.
+    /// Define un ejecutor de acciones reactivas que captura y maneja excepciones 
+    /// de manera unificada, sin acoplarse a la capa de presentación (HTTP).
     /// </summary>
     public class ReactiveServiceExecutor : IServiceExecutor
     {
         private readonly ILoggerService<ReactiveServiceExecutor> _logger;
 
         /// <summary>
-        /// Constructor que recibe el logger para registrar errores.
+        /// Constructor de la clase <see cref="ReactiveServiceExecutor"/>.
         /// </summary>
-        /// <param name="logger">El servicio de logging que se usará para registrar errores.</param>
+        /// <param name="logger">
+        /// Servicio de logging para registrar mensajes informativos o de error.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Se lanza si <paramref name="logger"/> es <c>null</c>.
+        /// </exception>
         public ReactiveServiceExecutor(ILoggerService<ReactiveServiceExecutor> logger)
         {
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <inheritdoc />
         /// <summary>
-        /// Ejecuta una acción de servicio de manera reactiva y maneja errores.
+        /// Envuelve la ejecución de una acción de manera reactiva, capturando excepciones 
+        /// específicas (<see cref="ServiceException"/>) y genéricas, registrando logs y 
+        /// relanzando la excepción para que capas superiores puedan manejarla.
         /// </summary>
-        /// <param name="action">La acción que se ejecutará de manera reactiva.</param>
-        /// <returns>Un observable que emite un resultado de acción.</returns>
-        public IObservable<IActionResult> ExecuteAsync(Func<IObservable<IActionResult>> action)
+        /// <typeparam name="T">
+        /// Tipo de dato que emitirá el observable devuelto por la acción.
+        /// </typeparam>
+        /// <param name="action">
+        /// Func que retorna un <see cref="IObservable{T}"/> con la lógica a ejecutar de forma asíncrona o reactiva.
+        /// </param>
+        /// <returns>
+        /// Un <see cref="IObservable{T}"/> que, al suscribirse, ejecutará la acción y 
+        /// emitirá los elementos o la excepción resultante.
+        /// </returns>
+        public IObservable<T> ExecuteAsync<T>(Func<IObservable<T>> action)
         {
-            // Ejecutamos la acción de manera reactiva y manejamos los errores.
-            return Observable.Defer(action)
-                .Catch<IActionResult, Exception>(ex =>
-                {
-                    // Asegúrate de que el logger esté capturando el mensaje y la excepción
-                    _logger.LogError($"Error ejecutando la acción: {ex.Message}", ex);
+            return Observable
+                .Defer(action)
 
-                    // Devolvemos un error 500
-                    var errorResponse = new ObjectResult(new { mensaje = ex.Message })
-                    {
-                        StatusCode = 500
-                    };
-                    return Observable.Return(errorResponse);
-                })
-                .Catch<IActionResult, ServiceException>(ex =>
+                // Captura excepciones específicas de servicio
+                .Catch<T, ServiceException>(ex =>
                 {
-                    // Asegúrate de que el logger esté capturando el mensaje específico para ServiceException
                     _logger.LogError($"Error específico de servicio: {ex.Message}", ex);
+                    // Relanzar la excepción para que la maneje el suscriptor
+                    return Observable.Throw<T>(ex);
+                })
 
-                    var errorResponse = new ObjectResult(new { mensaje = ex.Message, errorCode = ex.ErrorCode })
-                    {
-                        StatusCode = 500
-                    };
-                    return Observable.Return(errorResponse);
-                });;
+                // Captura excepciones genéricas
+                .Catch<T, Exception>(ex =>
+                {
+                    _logger.LogError($"Error genérico al ejecutar la acción: {ex.Message}", ex);
+                    return Observable.Throw<T>(ex);
+                });
         }
     }
 }

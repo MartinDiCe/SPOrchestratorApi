@@ -1,55 +1,116 @@
-﻿using System.Reactive.Linq;
-using Microsoft.EntityFrameworkCore;
-using SPOrchestratorAPI.Data;
+﻿using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services.Logging;
+using System.Reactive.Linq;
+using Microsoft.EntityFrameworkCore;
+using SPOrchestratorAPI.Exceptions;
 
 namespace SPOrchestratorAPI.Models.Repositories
 {
     /// <summary>
-    /// Repositorio específico para `Servicio`, heredando `RepositoryBase&lt; Servicio&gt; `.
+    /// Implementación de <see cref="IServicioRepository"/> 
+    /// para el acceso a datos de la entidad <see cref="Servicio"/> de manera reactiva.
     /// </summary>
-    public class ServicioRepository(ApplicationDbContext context, ILoggerService<RepositoryBase<Servicio>> logger)
-        : RepositoryBase<Servicio>(context, logger)
+    public class ServicioRepository : IServicioRepository
     {
+        private readonly ApplicationDbContext _context;
+        private readonly ILoggerService<ServicioRepository> _logger;
+        private readonly DbSet<Servicio> _dbSet;
+        private readonly IServiceExecutor  _serviceExecutor;
 
         /// <summary>
-        /// Obtiene todos los servicios activos de manera reactiva.
+        /// Constructor de la clase <see cref="ServicioRepository"/>.
         /// </summary>
-        public IObservable<IEnumerable<Servicio>> GetActiveServicesAsync()
+        /// <param name="context">El contexto de base de datos.</param>
+        /// <param name="logger">Servicio de logging.</param>
+        /// <param name="serviceExecutor">Ejecutor reactivo para manejar errores y suscripciones.</param>
+        /// <exception cref="ArgumentNullException">Lanzada si alguno de los parámetros es nulo.</exception>
+        public ServicioRepository(
+            ApplicationDbContext context,
+            ILoggerService<ServicioRepository> logger,
+            IServiceExecutor serviceExecutor)
         {
-            return Observable.FromAsync(async () =>
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _dbSet = _context.Set<Servicio>();
+            _serviceExecutor = serviceExecutor ?? throw new ArgumentNullException(nameof(serviceExecutor));
+        }
+
+        /// <inheritdoc />
+        public IObservable<IList<Servicio>> GetActiveServicesAsync()
+        {
+            return _serviceExecutor.ExecuteAsync(() =>
             {
-                try
+                return Observable.FromAsync(async () =>
                 {
-                    return await _dbSet
-                        .Where(s => s.Status == true && s.Deleted == false)
+                    _logger.LogInfo("Consultando servicios activos en la base de datos...");
+                    var services = await _dbSet
+                        .Where(s => s.Status && !s.Deleted)
                         .ToListAsync();
-                }
-                catch (Exception ex)
+
+                    _logger.LogInfo($"Se obtuvieron {services.Count} servicios activos.");
+                    return services;
+                });
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> GetByNameAsync(string name)
+        {
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                return Observable.FromAsync(async () =>
                 {
-                    _logger.LogError($"Error al obtener los servicios activos: {ex.Message}", ex);
-                    throw new Exception("Error al obtener los servicios activos.");
-                }
+                    var service = await _dbSet
+                        .Where(s => s.Name == name && !s.Deleted)
+                        .FirstOrDefaultAsync();
+
+                    if (service == null)
+                    {
+                        throw new ResourceNotFoundException(
+                            $"No se encontró un servicio con el nombre '{name}'.");
+                    }
+                    return service;
+                });
+            });
+        }
+        
+        /// <inheritdoc />
+        public IObservable<Servicio> GetByIdAsync(int id)
+        {
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                return Observable.FromAsync(async () =>
+                {
+                    var service = await _dbSet
+                        .Where(s => s.Id == id && !s.Deleted)
+                        .FirstOrDefaultAsync();
+
+                    if (service == null)
+                    {
+                        throw new ResourceNotFoundException(
+                            $"No se encontró un servicio con ID {id}.");
+                    }
+                    return service;
+                });
             });
         }
 
-        /// <summary>
-        /// Obtiene un servicio por su nombre de manera reactiva.
-        /// </summary>
-        public IObservable<Servicio?> GetByNameAsync(string name)
+        /// <inheritdoc />
+        public IObservable<Servicio> AddAsync(Servicio servicio)
         {
-            return Observable.FromAsync(async () =>
+            return _serviceExecutor.ExecuteAsync(() =>
             {
-                try
+                return Observable.FromAsync(async () =>
                 {
-                    return await _dbSet.FirstOrDefaultAsync(s => s.Name == name);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error al obtener el servicio con nombre {name}: {ex.Message}", ex);
-                    throw new Exception($"Error al obtener el servicio con nombre {name}.");
-                }
+                    _logger.LogInfo($"Agregando el servicio '{servicio.Name}' a la base de datos...");
+
+                    _dbSet.Add(servicio);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInfo($"Servicio '{servicio.Name}' persistido correctamente con ID {servicio.Id}.");
+                    return servicio;
+                });
             });
         }
     }

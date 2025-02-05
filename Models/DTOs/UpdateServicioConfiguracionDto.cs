@@ -1,12 +1,43 @@
-﻿namespace SPOrchestratorAPI.Models.DTOs;
-
-public class UpdateServicioConfiguracionDto
+﻿namespace SPOrchestratorAPI.Models.DTOs
 {
-    public int Id { get; set; }  
-    public int ServicioId { get; set; }  
-    public string NombreProcedimiento { get; set; } = string.Empty;
-    public string ConexionBaseDatos { get; set; } = string.Empty;
-    public string Parametros { get; set; } = string.Empty;
-    public int MaxReintentos { get; set; }
-    public int TimeoutSegundos { get; set; }
+    /// <summary>
+    /// DTO para actualizar una <see cref="ServicioConfiguracion"/> existente.
+    /// </summary>
+    public class UpdateServicioConfiguracionDto
+    {
+        /// <summary>
+        /// Identificador de la configuración a actualizar.
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// Identificador del <see cref="Servicio"/> al que pertenece esta configuración.
+        /// </summary>
+        public int ServicioId { get; set; }
+
+        /// <summary>
+        /// Nombre del procedimiento almacenado.
+        /// </summary>
+        public string NombreProcedimiento { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Cadena de conexión a la base de datos del procedimiento.
+        /// </summary>
+        public string ConexionBaseDatos { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Parámetros del SP, en formato JSON.
+        /// </summary>
+        public string Parametros { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Número máximo de reintentos antes de fallar la ejecución.
+        /// </summary>
+        public int MaxReintentos { get; set; }
+
+        /// <summary>
+        /// Tiempo máximo de espera (en segundos) antes de cancelar la ejecución del SP.
+        /// </summary>
+        public int TimeoutSegundos { get; set; }
+    }
 }

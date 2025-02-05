@@ -1,9 +1,28 @@
-﻿namespace SPOrchestratorAPI.Models.DTOs;
-
-public class UpdateServicioDto
+﻿namespace SPOrchestratorAPI.Models.DTOs
 {
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public bool Status { get; set; } = true;
+    /// <summary>
+    /// DTO para actualizar un <see cref="Servicio"/> existente.
+    /// </summary>
+    public class UpdateServicioDto
+    {
+        /// <summary>
+        /// Identificador del servicio a actualizar.
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// Nombre del servicio.
+        /// </summary>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Descripción del servicio.
+        /// </summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Indica si el servicio está activo (true) o inactivo (false).
+        /// </summary>
+        public bool Status { get; set; } = true;
+    }
 }

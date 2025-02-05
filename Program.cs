@@ -2,64 +2,90 @@ using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Exceptions;
-using SPOrchestratorAPI.Models.Entities;
+using SPOrchestratorAPI.Middleware;
 using SPOrchestratorAPI.Models.Repositories;
 using SPOrchestratorAPI.Services;
 using SPOrchestratorAPI.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar controladores
+// ---------------------------------------------------------
+// 1) Configurar servicios básicos (Controllers, Swagger, etc.)
+// ---------------------------------------------------------
 builder.Services.AddControllers();
 
-// Configurar Swagger
+// Método de extensión que agrega y configura Swagger 
+// (por ejemplo, AddEndpointsApiExplorer, AddSwaggerGen, etc.)
 builder.Services.AddSwaggerConfiguration();
 
-// Configurar base de datos 
+// ---------------------------------------------------------
+// 2) Configurar base de datos y DbContext
+// ---------------------------------------------------------
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Habilitar acceso al contexto HTTP
+// ---------------------------------------------------------
+// 3) Habilitar acceso al contexto HTTP para inyectar IHttpContextAccessor
+// ---------------------------------------------------------
 builder.Services.AddHttpContextAccessor();
 
-// Registro de servicios
-builder.Services.AddScoped<AuditEntitiesService>();
+// ---------------------------------------------------------
+// 4) Registrar servicios y utilidades personalizadas
+// ---------------------------------------------------------
 
-// Registro de ILoggerService para RepositoryBase<T>
-builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
-
-// Repositorios genéricos y específicos
-builder.Services.AddScoped(typeof(IRepository<>), typeof(RepositoryBase<>));
-builder.Services.AddScoped<ILoggerService<ServicioRepository>, LoggerService<ServicioRepository>>();
-builder.Services.AddScoped<IRepository<Servicio>, ServicioRepository>();
-builder.Services.AddScoped<IRepository<ServicioConfiguracion>, ServicioConfiguracionRepository>();
-builder.Services.AddScoped<ServicioRepository>();
-
-// Servicios de negocio
-builder.Services.AddScoped<IServicioService, ServicioService>();
-builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
-
-// Registra el IServiceExecutor y su implementación
+// Registramos el "executor" reactivo para manejar acciones y excepciones
 builder.Services.AddScoped<IServiceExecutor, ReactiveServiceExecutor>();
 
-// Agregar logs a consola y depuración
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.Logging.SetMinimumLevel(LogLevel.Debug);
+// Servicio que aplica auditoría a entidades derivadas de AuditEntities
+builder.Services.AddScoped<AuditEntitiesService>();
+
+// Logging genérico
+builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
+
+// Repositorio y su logger específico (opcional, 
+// si deseas logs con la categoría 'ServicioRepository' en particular)
+builder.Services.AddScoped<ILoggerService<ServicioRepository>, LoggerService<ServicioRepository>>();
+builder.Services.AddScoped<IServicioRepository, ServicioRepository>();
+
+// Servicio de dominio para la entidad "Servicio"
+builder.Services.AddScoped<IServicioService, ServicioService>();
+
+// ---------------------------------------------------------
+// 5) Configurar logging
+// ---------------------------------------------------------
+builder.Logging.ClearProviders();         // Quita los proveedores de log por defecto
+builder.Logging.AddConsole();            // Agrega log en consola
+builder.Logging.AddDebug();              // Agrega log en ventana de depuración
+builder.Logging.SetMinimumLevel(LogLevel.Debug); // Nivel mínimo de detalle
 
 var app = builder.Build();
 
-// Llamar al Inicializador de la Base de Datos
+// ---------------------------------------------------------
+// 6) Inicializar la base de datos (semillas, migraciones, etc.)
+// ---------------------------------------------------------
 DatabaseInitializer.Initialize(app.Services);
 
-// Configurar Swagger solo en entornos de desarrollo
+// ---------------------------------------------------------
+// 7) Pipeline de Middlewares
+// ---------------------------------------------------------
+
+// Usar Swagger en entornos de desarrollo
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
 
+// Capturar excepciones y comunicarlas con el controlador
+app.UseMiddleware<ExceptionMiddleware>();
+
+// Autorización (si tienes endpoints que la requieran)
 app.UseAuthorization();
+
+// Enruta las peticiones a los endpoints de Controllers
 app.MapControllers();
+
+// Arranca la aplicación
 app.Run();

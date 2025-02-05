@@ -1,208 +1,128 @@
-﻿using System.Reactive; 
-using System.Reactive.Linq;
+﻿using System.Reactive.Linq;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Models.DTOs;
 using SPOrchestratorAPI.Services.Logging;
 
-namespace SPOrchestratorAPI.Services;
-
-/// <summary>
-/// Implementación del servicio para la gestión de servicios.
-/// </summary>
-public class ServicioService(
-    ServicioRepository servicioRepository,
-    ILoggerService<ServicioService> logger,
-    IServiceExecutor serviceExecutor)
-    : IServicioService
+namespace SPOrchestratorAPI.Services
 {
-    private readonly ServicioRepository _servicioRepository = servicioRepository ?? throw new ArgumentNullException(nameof(servicioRepository));
-    private readonly ILoggerService<ServicioService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IServiceExecutor _serviceExecutor = serviceExecutor ?? throw new ArgumentNullException(nameof(serviceExecutor)); // Corrección aquí
-
-    /// <inheritdoc />
-    public IObservable<IEnumerable<Servicio>> GetAllAsync()
+    /// <summary>
+    /// Implementación del servicio para la gestión de <see cref="Servicio"/>.
+    /// </summary>
+    public class ServicioService : IServicioService
     {
-        return _servicioRepository.GetAllAsync(s => !s.Deleted)
-            .Select(servicios =>
-            {
-                var servicioList = servicios.ToList();
-                if (!servicioList.Any())
-                {
-                    throw new NotFoundException("No se encontraron servicios.");
-                }
-                return servicioList;
-            })
-            .Catch<IEnumerable<Servicio>, Exception>(ex =>
-            {
-                _logger.LogError($"Error en GetAllAsync: {ex.Message}", ex);
-                return Observable.Throw<IEnumerable<Servicio>>(ex);
-            });
-    }
+        private readonly IServicioRepository _servicioRepository;
+        private readonly ILoggerService<ServicioService> _logger;
+        private readonly IServiceExecutor _serviceExecutor;
 
-    /// <inheritdoc />
-    public IObservable<Servicio> GetByIdAsync(int id)
-    {
-        return _servicioRepository.GetByIdAsync(id)
-            .Select(servicio => servicio ?? throw new NotFoundException($"No se encontró el servicio con ID {id}."))
-            .Where(servicio => !servicio.Deleted)
-            .Catch<Servicio, Exception>(ex =>
-            {
-                _logger.LogError($"Error en GetByIdAsync: {ex.Message}", ex);
-                return Observable.Throw<Servicio>(ex);
-            });
-    }
+        /// <summary>
+        /// Constructor de la clase <see cref="ServicioService"/>.
+        /// </summary>
+        /// <param name="servicioRepository">El repositorio para acceder a datos de <see cref="Servicio"/>.</param>
+        /// <param name="logger">Servicio de logging.</param>
+        /// <param name="serviceExecutor">Ejecutor reactivo para manejar errores y suscripciones.</param>
+        /// <exception cref="ArgumentNullException">Si algún parámetro es nulo.</exception>
+        public ServicioService(
+            IServicioRepository servicioRepository,
+            ILoggerService<ServicioService> logger,
+            IServiceExecutor serviceExecutor)
+        {
+            _servicioRepository = servicioRepository ?? throw new ArgumentNullException(nameof(servicioRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _serviceExecutor = serviceExecutor ?? throw new ArgumentNullException(nameof(serviceExecutor));
+        }
 
-    /// <inheritdoc />
-    public IObservable<Servicio> CreateAsync(CreateServicioDto servicioDto)
-    {
-        return Observable.FromAsync(async () =>
+        /// <inheritdoc />
+        public IObservable<Servicio> CreateAsync(CreateServicioDto servicioDto)
+        {
+            // Ejecutamos la lógica de negocio dentro del serviceExecutor
+            return _serviceExecutor.ExecuteAsync(() =>
             {
                 _logger.LogInfo("Iniciando la creación del servicio...");
 
-                // Validación del nombre del servicio
-                if (string.IsNullOrEmpty(servicioDto.Name))
+                // 1) Validaciones de entrada
+                if (string.IsNullOrWhiteSpace(servicioDto.Name))
                 {
                     _logger.LogWarning("El nombre del servicio es obligatorio.");
-                    throw new ArgumentException("El nombre del servicio es obligatorio.");
+                    throw new ArgumentException("El nombre del servicio es obligatorio.", nameof(servicioDto.Name));
                 }
 
+                // 2) Verificamos si ya existe un servicio con el mismo nombre (no eliminado).
                 _logger.LogInfo($"Verificando si ya existe un servicio con el nombre: {servicioDto.Name}");
 
-                // Verifica si ya existe un servicio con el mismo nombre usando GetByNameAsync
-                var existingService = await _servicioRepository.GetByNameAsync(servicioDto.Name);
+                // Observa que GetByNameAsync lanza ResourceNotFoundException si no existe.
+                // Para la lógica de "no existe => se puede crear", capturamos esa excepción
+                // y retornamos null, indicando que el nombre está libre.
+                return _servicioRepository
+                    .GetByNameAsync(servicioDto.Name)
+                    .Catch<Servicio, ResourceNotFoundException>(_ =>
+                    {
+                        _logger.LogInfo($"No existe un servicio con el nombre {servicioDto.Name}, se procede a crear.");
+                        return Observable.Return<Servicio>(null);
+                    })
+                    .Select(existingService =>
+                    {
+                        if (existingService != null)
+                        {
+                            // Si la llamada NO lanza ResourceNotFound,
+                            // significa que sí encontró un servicio => duplicado
+                            _logger.LogWarning($"Ya existe un servicio con el nombre '{servicioDto.Name}'.");
+                            throw new InvalidOperationException($"Ya existe un servicio con el nombre '{servicioDto.Name}'.");
+                        }
 
-                // Si el servicio ya existe, lanzamos una excepción
-                if (existingService != null)
-                {
-                    _logger.LogWarning($"Ya existe un servicio con el nombre '{servicioDto.Name}'.");
-                    throw new InvalidOperationException($"Ya existe un servicio con el nombre '{servicioDto.Name}'.");
-                }
+                        // 3) No existe => podemos crear uno nuevo
+                        var servicio = new Servicio
+                        {
+                            Name = servicioDto.Name,
+                            Description = servicioDto.Description,
+                            Status = servicioDto.Status,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = "System" // O tu usuario actual
+                        };
 
-                // Si el servicio no existe, creamos un nuevo servicio
-                var servicio = new Servicio
-                {
-                    Name = servicioDto.Name,
-                    Description = servicioDto.Description,
-                    Status = servicioDto.Status,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = "System"
-                };
-
-                _logger.LogInfo($"Servicio creado: {servicio.Name}.");
-
-                // Agregar el nuevo servicio a la base de datos
-                var addedService = await _servicioRepository.AddAsync(servicio);
-
-                _logger.LogInfo($"Servicio {addedService.Name} creado correctamente con ID {addedService.Id}.");
-
-                return addedService;
-            })
-            .Catch<Servicio, Exception>(ex =>
-            {
-                _logger.LogError($"Error en CreateAsync: {ex.Message}", ex);
-                return Observable.Throw<Servicio>(ex);
+                        // 4) Persistimos el nuevo registro en la base de datos
+                        return _servicioRepository.AddAsync(servicio);
+                    })
+                    // 5) Como AddAsync retorna IObservable<Servicio>, tenemos IObservable<IObservable<Servicio>>,
+                    //    así que usamos Switch() para "aplanarlo".
+                    .Switch()
+                    // 6) Finalmente, podemos hacer algo con el servicio creado (logging, etc.)
+                    .Do(createdService =>
+                    {
+                        _logger.LogInfo($"Servicio '{createdService.Name}' creado correctamente con ID {createdService.Id}.");
+                    });
             });
-    }
+        }
 
-    /// <inheritdoc />
-    public IObservable<Unit> UpdateAsync(UpdateServicioDto servicioDto)
-    {
-        return GetByIdAsync(servicioDto.Id)
-                .SelectMany(servicio =>
-                {
-                    servicio.Name = servicioDto.Name;
-                    servicio.Description = servicioDto.Description;
-                    servicio.Status = servicioDto.Status;
-                    servicio.UpdatedAt = DateTime.UtcNow;
-                    servicio.UpdatedBy = "System";
-                    return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
-                })
-            .Catch<Unit, Exception>(ex =>
+        /// <inheritdoc />
+        public IObservable<Servicio> GetByIdAsync(int id)
+        {
+            if (id <= 0)
             {
-                _logger.LogError($"Error en UpdateAsync: {ex.Message}", ex);
-                return Observable.Throw<Unit>(ex);
-            });
-    }
-
-    /// <inheritdoc />
-public IObservable<Unit> ChangeStatusAsync(int id, bool newStatus)
-{
-    return GetByIdAsync(id)
-        .SelectMany(servicio =>
-        {
-            servicio.Status = newStatus;
-            servicio.UpdatedAt = DateTime.UtcNow;
-            servicio.UpdatedBy = "System";
-
-            _logger.LogInfo($"Cambio de estado para el servicio con ID {id} a {newStatus}.");
-            
-            return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
-        })
-        .Catch<Unit, Exception>(ex =>
-        {
-            _logger.LogError($"Error al cambiar el estado del servicio con ID {id}: {ex.Message}", ex);
-            return Observable.Throw<Unit>(ex);
-        });
-}
-
-/// <inheritdoc />
-public IObservable<Unit> DeleteBySystemAsync(int id)
-{
-    return GetByIdAsync(id)
-        .SelectMany(servicio =>
-        {
-            servicio.Deleted = true;
-            servicio.DeletedAt = DateTime.UtcNow;
-            servicio.DeletedBy = "System";
-
-            _logger.LogInfo($"Marcando el servicio con ID {id} como eliminado.");
-            
-            return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
-        })
-        .Catch<Unit, Exception>(ex =>
-        {
-            _logger.LogError($"Error al eliminar el servicio con ID {id}: {ex.Message}", ex);
-            return Observable.Throw<Unit>(ex);
-        });
-}
-
-/// <inheritdoc />
-public IObservable<Unit> RestoreBySystemAsync(int id)
-{
-    return _servicioRepository.GetByIdAsync(id)
-        .Select(servicio => servicio ?? throw new NotFoundException($"No se encontró un servicio eliminado con ID {id}."))
-        .Where(servicio => servicio.Deleted)
-        .SelectMany(servicio =>
-        {
-            servicio.Deleted = false;
-            servicio.DeletedAt = null;
-            servicio.DeletedBy = null;
-            servicio.UpdatedAt = DateTime.UtcNow;
-            servicio.UpdatedBy = "System";
-
-            _logger.LogInfo($"Restaurando el servicio con ID {id}.");
-
-            return _servicioRepository.UpdateAsync(servicio).Select(_ => Unit.Default);
-        })
-        .Catch<Unit, Exception>(ex =>
-        {
-            _logger.LogError($"Error al restaurar el servicio con ID {id}: {ex.Message}", ex);
-            return Observable.Throw<Unit>(ex);
-        });
-    }
-
-    /// <inheritdoc />
-    public IObservable<Servicio> GetByNameAsync(string name)
-    {
-        return _servicioRepository.GetByNameAsync(name)
-            .Select(servicio => servicio ?? throw new NotFoundException($"No se encontró el servicio con el nombre {name}."))
-            .Catch<Servicio, Exception>(ex =>
+                throw new ArgumentException("El ID debe ser mayor que 0.", nameof(id));
+            }
+            return _serviceExecutor.ExecuteAsync(() =>
             {
-                _logger.LogError($"Error al obtener el servicio con nombre {name}: {ex.Message}", ex);
-                return Observable.Throw<Servicio>(ex);
+                _logger.LogInfo($"Buscando servicio con ID {id} (excluyendo registros eliminados).");
+                
+                return _servicioRepository.GetByIdAsync(id);
             });
+        }
+
+        /// <inheritdoc />
+        public IObservable<Servicio> GetByNameAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("El nombre no puede ser vacío.", nameof(name));
+            }
+
+            return _serviceExecutor.ExecuteAsync(() =>
+            {
+                _logger.LogInfo($"Buscando servicio con el nombre '{name}' (excluyendo registros eliminados).");
+                return _servicioRepository.GetByNameAsync(name);
+            });
+        }
     }
-    
 }
