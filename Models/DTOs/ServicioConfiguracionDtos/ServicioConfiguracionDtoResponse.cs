@@ -1,4 +1,6 @@
-﻿namespace SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
+﻿using SPOrchestratorAPI.Models.Enums;
+
+namespace SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
 
 /// <summary>
 /// DTO que representa la respuesta al consultar una <see cref="ServicioConfiguracion"/>,
@@ -29,7 +31,12 @@ public class ServicioConfiguracionDtoResponse
     /// <summary>
     /// Parámetros del SP, en formato JSON.
     /// </summary>
-    public string Parametros { get; set; } = string.Empty;
+    public Dictionary<string, string>? Parametros { get; set; }
+    
+    /// <summary>
+    /// Base de datos de la conexion.
+    /// </summary>
+    public DatabaseProvider Provider { get; set; } = DatabaseProvider.SqlServer;
 
     /// <summary>
     /// Número máximo de reintentos.

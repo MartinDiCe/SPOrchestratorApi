@@ -87,14 +87,14 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
                 {
                     throw new ResourceNotFoundException($"No se encontró configuración con ID {config.Id}.");
                 }
-
-                // Actualiza campos
+                
                 existing.ServicioId = config.ServicioId; 
                 existing.NombreProcedimiento = config.NombreProcedimiento;
                 existing.ConexionBaseDatos = config.ConexionBaseDatos;
                 existing.Parametros = config.Parametros;
                 existing.MaxReintentos = config.MaxReintentos;
                 existing.TimeoutSegundos = config.TimeoutSegundos;
+                existing.Provider = config.Provider;
                 existing.UpdatedAt = DateTime.UtcNow;
                 existing.UpdatedBy = "System";
 

@@ -1,7 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using System;
-
-namespace SPOrchestratorAPI.Configuration;
+﻿namespace SPOrchestratorAPI.Configuration;
 
 /// <summary>
 /// Clase que proporciona la cadena de conexión a la base de datos,

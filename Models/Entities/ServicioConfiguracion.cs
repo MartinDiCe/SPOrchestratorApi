@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using SPOrchestratorAPI.Models.Base;
+using SPOrchestratorAPI.Models.Enums;
 
 namespace SPOrchestratorAPI.Models.Entities;
 
@@ -60,4 +61,10 @@ public class ServicioConfiguracion : AuditEntities
     /// Tiempo máximo de espera (en segundos) antes de cancelar la ejecución del procedimiento.
     /// </summary>
     public int TimeoutSegundos { get; set; } = 30;
+    
+    /// <summary>
+    /// Base de datos de la conexion.
+    /// </summary>
+    [Required]
+    public DatabaseProvider Provider { get; set; } = DatabaseProvider.SqlServer;
 }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
@@ -6,16 +7,22 @@ using SPOrchestratorAPI.Middleware;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
 using SPOrchestratorAPI.Services.AuditServices;
+using SPOrchestratorAPI.Services.ConnectionTesting;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
+using SPOrchestratorAPI.Services.StoreProcedureServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------------------------------------------------------
 // 1) Configurar servicios básicos (Controllers, Swagger, etc.)
 // ---------------------------------------------------------
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 // Método de extensión que agrega y configura Swagger 
 // (por ejemplo, AddEndpointsApiExplorer, AddSwaggerGen, etc.)
@@ -55,6 +62,10 @@ builder.Services.AddScoped<IServicioConfiguracionRepository, ServicioConfiguraci
 // Servicio de dominio para la entidad "Servicio"
 builder.Services.AddScoped<IServicioService, ServicioService>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
+builder.Services.AddScoped<IConnectionTester, ConnectionTester>();
+builder.Services.AddScoped<IServicioConfiguracionConnectionTestService, ServicioConfiguracionConnectionTestService>();
+builder.Services.AddScoped<IStoredProcedureService, StoredProcedureService>();
+
 
 // ---------------------------------------------------------
 // 5) Configurar logging

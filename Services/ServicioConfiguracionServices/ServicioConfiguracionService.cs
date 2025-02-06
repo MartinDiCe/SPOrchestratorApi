@@ -122,7 +122,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
                 }
         
-                // Validar y transformar el campo Parametros
+                
                 string? parametrosJson;
                 try
                 {
@@ -139,14 +139,16 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     ServicioId = dto.ServicioId,
                     NombreProcedimiento = dto.NombreProcedimiento,
                     ConexionBaseDatos = dto.ConexionBaseDatos,
-                    Parametros = parametrosJson,  // Se asigna el JSON validado y transformado
+                    Parametros = parametrosJson,  
                     MaxReintentos = dto.MaxReintentos,
                     TimeoutSegundos = dto.TimeoutSegundos,
+                    Provider = dto.Provider,
                     Servicio = new Servicio { Id = dto.ServicioId }
                 };
 
                 return _repository
                     .UpdateAsync(configToUpdate)
+                    
                     .Do(updated =>
                     {
                         _logger.LogInfo($"Configuración {updated.Id} actualizada correctamente para el servicio {updated.ServicioId}.");

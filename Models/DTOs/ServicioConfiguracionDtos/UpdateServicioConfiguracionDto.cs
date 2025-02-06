@@ -1,4 +1,8 @@
-﻿namespace SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
+﻿using System.ComponentModel.DataAnnotations;
+using SPOrchestratorAPI.Models.Enums;
+using SPOrchestratorAPI.Validations;
+
+namespace SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
 
 /// <summary>
 /// DTO para actualizar una <see cref="ServicioConfiguracion"/> existente.
@@ -23,6 +27,7 @@ public class UpdateServicioConfiguracionDto
     /// <summary>
     /// Cadena de conexión a la base de datos del procedimiento.
     /// </summary>
+    [ConnectionStringValidation]
     public string ConexionBaseDatos { get; set; } = string.Empty;
 
     /// <summary>
@@ -39,4 +44,10 @@ public class UpdateServicioConfiguracionDto
     /// Tiempo máximo de espera (en segundos) antes de cancelar la ejecución del SP.
     /// </summary>
     public int TimeoutSegundos { get; set; }
+    
+    /// <summary>
+    /// Base de datos de la conexion.
+    /// </summary>
+    [Required]
+    public DatabaseProvider Provider { get; set; } = DatabaseProvider.SqlServer;
 }
