@@ -1,4 +1,8 @@
-﻿namespace SPOrchestratorAPI.Models.DTOs.ServicioDtos;
+﻿using System.ComponentModel.DataAnnotations;
+using SPOrchestratorAPI.Services.Helpers;
+using SPOrchestratorAPI.Validations;
+
+namespace SPOrchestratorAPI.Models.DTOs.ServicioDtos;
 
 /// <summary>
 /// DTO para la creación de un nuevo <see cref="Servicio"/>. 
@@ -9,6 +13,8 @@ public class CreateServicioDto
     /// <summary>
     /// Nombre del servicio.
     /// </summary>
+    [Required]
+    [NombreFormat]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

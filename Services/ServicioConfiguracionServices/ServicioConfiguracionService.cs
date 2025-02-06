@@ -3,6 +3,7 @@ using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
+using SPOrchestratorAPI.Services.Helpers;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ServicioServices;
 
@@ -44,7 +45,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
             return _executor.ExecuteAsync(() =>
             {
                 _logger.LogInfo("Creando nueva configuración de servicio...");
-                
+                        
                 if (dto.ServicioId <= 0)
                 {
                     throw new ArgumentException("El ServicioId debe ser mayor a 0.", nameof(dto.ServicioId));
@@ -54,6 +55,16 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
                 }
                 
+                string? parametrosJson;
+                try
+                {
+                    parametrosJson = ParametrosHelper.ValidarYTransformar(dto.Parametros);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new ArgumentException($"Error en el campo Parametros: {ex.Message}");
+                }
+
                 return _servicioService.GetByIdAsync(dto.ServicioId)
                     .SelectMany(servicioExistente =>
                     {
@@ -61,8 +72,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                         {
                             throw new ArgumentException($"El servicio con ID {dto.ServicioId} no existe.");
                         }
-
-                        // Validar que no exista ya una configuración para ese servicio
+                        
                         return _repository.GetByServicioIdAsync(dto.ServicioId)
                             .SelectMany(existingConfigs =>
                             {
@@ -70,14 +80,14 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                                 {
                                     throw new InvalidOperationException($"Ya existe una configuración para el servicio con ID {dto.ServicioId}.");
                                 }
-
-                                // Si no existe, crear la nueva configuración
+                                
                                 var config = new ServicioConfiguracion
                                 {
                                     ServicioId = dto.ServicioId,
                                     NombreProcedimiento = dto.NombreProcedimiento,
                                     ConexionBaseDatos = dto.ConexionBaseDatos,
-                                    Parametros = dto.Parametros,
+                                    // Se asigna el JSON transformado al campo Parametros
+                                    Parametros = parametrosJson,
                                     MaxReintentos = dto.MaxReintentos,
                                     TimeoutSegundos = dto.TimeoutSegundos,
                                     CreatedAt = DateTime.UtcNow,
@@ -111,6 +121,17 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                 {
                     throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
                 }
+        
+                // Validar y transformar el campo Parametros
+                string? parametrosJson;
+                try
+                {
+                    parametrosJson = ParametrosHelper.ValidarYTransformar(dto.Parametros);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new ArgumentException($"Error en el campo Parametros: {ex.Message}");
+                }
                 
                 var configToUpdate = new ServicioConfiguracion
                 {
@@ -118,11 +139,10 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     ServicioId = dto.ServicioId,
                     NombreProcedimiento = dto.NombreProcedimiento,
                     ConexionBaseDatos = dto.ConexionBaseDatos,
-                    Parametros = dto.Parametros,
+                    Parametros = parametrosJson,  // Se asigna el JSON validado y transformado
                     MaxReintentos = dto.MaxReintentos,
                     TimeoutSegundos = dto.TimeoutSegundos,
                     Servicio = new Servicio { Id = dto.ServicioId }
-                    
                 };
 
                 return _repository

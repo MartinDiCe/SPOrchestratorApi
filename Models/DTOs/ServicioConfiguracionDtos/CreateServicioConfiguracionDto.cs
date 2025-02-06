@@ -1,4 +1,8 @@
-﻿namespace SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
+﻿using System.ComponentModel.DataAnnotations;
+using SPOrchestratorAPI.Services.Helpers;
+using SPOrchestratorAPI.Validations;
+
+namespace SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
 
 /// <summary>
 /// DTO para la creación de una nueva configuración de <see cref="ServicioConfiguracion"/>,
@@ -14,6 +18,8 @@ public class CreateServicioConfiguracionDto
     /// <summary>
     /// Nombre del procedimiento almacenado (Stored Procedure) que se ejecutará.
     /// </summary>
+    [Required]
+    [NombreFormat]
     public string NombreProcedimiento { get; set; } = string.Empty;
 
     /// <summary>
@@ -22,9 +28,11 @@ public class CreateServicioConfiguracionDto
     public string ConexionBaseDatos { get; set; } = string.Empty;
 
     /// <summary>
-    /// Parámetros del SP, usualmente en formato JSON para mayor flexibilidad.
+    /// Parámetros opcionales (en formato string) requeridos para el Stored Procedure.
+    /// Debe contener los nombres separados por ';' sin espacios.
     /// </summary>
-    public string Parametros { get; set; } = string.Empty;
+    [ParametrosFormat]
+    public string? Parametros { get; set; }
 
     /// <summary>
     /// Máximo número de reintentos permitidos antes de declarar un fallo en la ejecución.
