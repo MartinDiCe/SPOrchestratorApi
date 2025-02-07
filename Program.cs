@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Exceptions;
+using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Middleware;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
@@ -27,6 +29,12 @@ builder.Services.AddControllers()
 // Método de extensión que agrega y configura Swagger 
 // (por ejemplo, AddEndpointsApiExplorer, AddSwaggerGen, etc.)
 builder.Services.AddSwaggerConfiguration();
+
+// Configurar respuesta personalizada para errores de model binding utilizando la clase auxiliar
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context => ModelValidationResponseFactory.CustomResponse(context.ModelState);
+});
 
 // ---------------------------------------------------------
 // 2) Configurar base de datos y DbContext

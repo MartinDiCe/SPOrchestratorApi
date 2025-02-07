@@ -12,6 +12,17 @@ namespace SPOrchestratorAPI.Services.ConnectionTesting
     /// </summary>
     public class ConnectionTester : IConnectionTester
     {
+        private readonly ILogger<ConnectionTester> _logger;
+
+        /// <summary>
+        /// Crea una nueva instancia de <see cref="ConnectionTester"/> inyectando el logger.
+        /// </summary>
+        /// <param name="logger">Logger para registrar mensajes de información y error.</param>
+        public ConnectionTester(ILogger<ConnectionTester> logger)
+        {
+            _logger = logger;
+        }
+
         /// <inheritdoc />
         public async Task<ConnectionTestResult> TestConnectionAsync(string connectionString, DatabaseProvider provider)
         {
@@ -19,6 +30,8 @@ namespace SPOrchestratorAPI.Services.ConnectionTesting
 
             try
             {
+                _logger.LogInformation("Probando conexión. Proveedor: {Provider}, Cadena de conexión: {ConnectionString}", provider, connectionString);
+
                 switch (provider)
                 {
                     case DatabaseProvider.SqlServer:
@@ -68,10 +81,11 @@ namespace SPOrchestratorAPI.Services.ConnectionTesting
                 result.IsSuccess = false;
                 result.Message = "La conexión falló.";
                 result.ExceptionMessage = ex.Message;
+                _logger.LogError(ex, "Error al probar la conexión.");
             }
-
+            
+            _logger.LogInformation("Resultado del test de conexión: {Result}", result);
             return result;
         }
     }
 }
-

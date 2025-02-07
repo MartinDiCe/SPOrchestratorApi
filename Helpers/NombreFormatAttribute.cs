@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
-namespace SPOrchestratorAPI.Services.Helpers
+namespace SPOrchestratorAPI.Helpers
 {
     /// <summary>
     /// Atributo de validación para asegurar que el nombre cumpla con el formato requerido:
