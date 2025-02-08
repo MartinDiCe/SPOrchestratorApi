@@ -35,12 +35,10 @@ public class ExceptionMiddleware
     {
         try
         {
-            // Continúa con el siguiente middleware
             await _next(context);
         }
         catch (Exception ex)
         {
-            // Registramos el error y construimos la respuesta adecuada
             _logger.LogError(ex, "Ocurrió un error no controlado.");
             await HandleExceptionAsync(context, ex);
         }

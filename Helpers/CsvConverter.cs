@@ -4,7 +4,7 @@ namespace SPOrchestratorAPI.Helpers
 {
     public static class CsvConverter
     {
-        public static string ConvertToCsv(List<Dictionary<string, object>> rows)
+        public static string ConvertToCsv(List<Dictionary<string, object>>? rows)
         {
             if (rows == null || rows.Count == 0)
             {

@@ -37,12 +37,10 @@ public class ServicioService : IServicioService
     /// <inheritdoc />
     public IObservable<Servicio> CreateAsync(CreateServicioDto servicioDto)
     {
-        // Ejecutamos la lógica de negocio dentro del serviceExecutor
         return _serviceExecutor.ExecuteAsync(() =>
         {
             _logger.LogInfo("Iniciando la creación del servicio...");
 
-            // 1) Validaciones de entrada
             if (string.IsNullOrWhiteSpace(servicioDto.Name))
             {
                 _logger.LogWarning("El nombre del servicio es obligatorio.");

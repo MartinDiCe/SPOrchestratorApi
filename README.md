@@ -3,7 +3,7 @@
 ## Introducción
 **SPOrchestratorAPI** es un microservicio diseñado para ejecutar stored procedures de manera dinámica en diversas bases de datos. La configuración completa de cada SP (nombre, cadena de conexión, proveedor y parámetros esperados) se almacena en la base de datos, lo que permite agregar o modificar stored procedures sin necesidad de cambiar el código.
 
-El sistema sigue el enfoque B y los principios SOLID, utilizando programación reactiva para la ejecución y validación centralizada, y middlewares globales para el registro de logs y manejo de excepciones. Esto centraliza la lógica de negocio y la configuración, mientras que los controladores se mantienen delgados y se centran únicamente en la presentación.
+El sistema sigue el los principios SOLID, utilizando programación reactiva para la ejecución y validación centralizada, y middlewares globales para el registro de logs y manejo de excepciones. Esto centraliza la lógica de negocio y la configuración, mientras que los controladores se mantienen delgados y se centran únicamente en la presentación.
 
 ## Proceso
 

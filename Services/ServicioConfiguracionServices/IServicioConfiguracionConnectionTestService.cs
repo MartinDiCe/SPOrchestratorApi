@@ -1,4 +1,5 @@
-﻿using SPOrchestratorAPI.Services.ConnectionTesting;
+﻿using SPOrchestratorAPI.Models.DTOs.ConnectionDtos;
+using SPOrchestratorAPI.Services.ConnectionTestingServices;
 
 namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
 {
@@ -9,6 +10,6 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
         /// </summary>
         /// <param name="idConfiguracion">Id de la configuración.</param>
         /// <returns>Resultado del testeo de conexión.</returns>
-        Task<ConnectionTestResult> TestConnectionAsync(int idConfiguracion);
+        Task<ConnectionTestResultDto> TestConnectionAsync(int idConfiguracion);
     }
 }

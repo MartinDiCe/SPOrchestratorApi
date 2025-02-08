@@ -1,6 +1,5 @@
 ﻿using SPOrchestratorAPI.Data;
-using Microsoft.Extensions.DependencyInjection;
-using System;
+using SPOrchestratorAPI.Models.Repositories.ParameterRepositories;
 
 namespace SPOrchestratorAPI.Configuration;
 
@@ -19,11 +18,14 @@ public static class DatabaseInitializer
     /// </param>
     public static void Initialize(IServiceProvider serviceProvider)
     {
-        // Se crea un scope para garantizar que el DbContext se libere después de usarse.
         using var scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        // Crea la base de datos si no existe, sin aplicar migraciones.
+        
         dbContext.Database.EnsureCreated();
+        
+        var parameterRepository = scope.ServiceProvider.GetRequiredService<IParameterRepository>();
+        
+        ParameterSeeder.SeedDefaultParametersAsync(parameterRepository).GetAwaiter().GetResult();
+        
     }
 }

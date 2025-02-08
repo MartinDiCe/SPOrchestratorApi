@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Clase que proporciona la cadena de conexión a la base de datos,
-/// obtenida desde la configuración de la aplicación (appsettings, por ejemplo).
+/// obtenida desde la configuración de la aplicación (app-settings, por ejemplo).
 /// </summary>
 public class DatabaseConfig
 {
@@ -12,7 +12,7 @@ public class DatabaseConfig
     /// Constructor de <see cref="DatabaseConfig"/>, que recibe la configuración general de la aplicación.
     /// </summary>
     /// <param name="configuration">
-    /// Objeto que proporciona acceso a los valores de configuración (por ejemplo, las secciones de appsettings.json).
+    /// Objeto que proporciona acceso a los valores de configuración (por ejemplo, las secciones de app-settings.json).
     /// </param>
     /// <exception cref="ArgumentNullException">
     /// Se lanza si <paramref name="configuration"/> es <c>null</c>.

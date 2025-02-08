@@ -321,7 +321,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                                         _logger.LogInfo($"Se agregaron {parameters.Count} parámetros al SP '{spName}'.");
                                     }
 
-                                    // Ejecutar el SP y capturar los resultados usando un DataReader
                                     using (var reader = await command.ExecuteReaderAsync())
                                     {
                                         var resultList = new List<Dictionary<string, object>>();

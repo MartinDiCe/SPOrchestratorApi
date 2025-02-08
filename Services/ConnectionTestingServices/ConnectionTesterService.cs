@@ -2,31 +2,32 @@
 using MySql.Data.MySqlClient;
 using Npgsql;
 using Oracle.ManagedDataAccess.Client;
+using SPOrchestratorAPI.Models.DTOs.ConnectionDtos;
 using SPOrchestratorAPI.Models.Enums;
 
-namespace SPOrchestratorAPI.Services.ConnectionTesting
+namespace SPOrchestratorAPI.Services.ConnectionTestingServices
 {
     /// <summary>
     /// Implementa la lógica para probar la conexión a una base de datos según el proveedor especificado.
     /// Esta clase utiliza diferentes constructores de cadena de conexión dependiendo del proveedor.
     /// </summary>
-    public class ConnectionTester : IConnectionTester
+    public class ConnectionTesterService : IConnectionTesterService
     {
-        private readonly ILogger<ConnectionTester> _logger;
+        private readonly ILogger<ConnectionTesterService> _logger;
 
         /// <summary>
-        /// Crea una nueva instancia de <see cref="ConnectionTester"/> inyectando el logger.
+        /// Crea una nueva instancia de <see cref="ConnectionTesterService"/> inyectando el logger.
         /// </summary>
         /// <param name="logger">Logger para registrar mensajes de información y error.</param>
-        public ConnectionTester(ILogger<ConnectionTester> logger)
+        public ConnectionTesterService(ILogger<ConnectionTesterService> logger)
         {
             _logger = logger;
         }
 
         /// <inheritdoc />
-        public async Task<ConnectionTestResult> TestConnectionAsync(string connectionString, DatabaseProvider provider)
+        public async Task<ConnectionTestResultDto> TestConnectionAsync(string connectionString, DatabaseProvider provider)
         {
-            var result = new ConnectionTestResult();
+            var result = new ConnectionTestResultDto();
 
             try
             {
