@@ -14,11 +14,6 @@ namespace SPOrchestratorAPI.Models.Entities
         public int ApiTraceId { get; set; }
 
         /// <summary>
-        /// (Opcional) Identificador del servicio al que se llamó.
-        /// </summary>
-        public string ServiceId { get; set; }
-
-        /// <summary>
         /// Nombre o endpoint del servicio invocado.
         /// </summary>
         [MaxLength(100)]

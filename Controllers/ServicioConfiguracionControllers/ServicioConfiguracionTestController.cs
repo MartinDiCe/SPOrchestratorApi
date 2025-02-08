@@ -21,6 +21,7 @@ namespace SPOrchestratorAPI.Controllers.ServicioConfiguracionControllers
         /// Constructor que recibe la dependencia del servicio de testeo de conexión.
         /// </summary>
         /// <param name="testService">Servicio para testear la conexión de la configuración.</param>
+        /// <param name="spService"></param>
         public ServicioConfiguracionTestController(IServicioConfiguracionConnectionTestService testService, IStoredProcedureService spService)
         {
             _testService = testService ?? throw new ArgumentNullException(nameof(testService));
@@ -31,7 +32,7 @@ namespace SPOrchestratorAPI.Controllers.ServicioConfiguracionControllers
         /// <summary>
         /// Endpoint para testear la conexión de una configuración a partir de su ID.
         /// </summary>
-        /// <param name="id">ID de la configuración de servicio.</param>
+        /// <param name="id">Id de la configuración de servicio.</param>
         /// <returns>
         /// En caso de éxito, retorna un 200 OK con el resultado del test de conexión.
         /// Si no se encuentra la configuración, retorna 404 Not Found.
