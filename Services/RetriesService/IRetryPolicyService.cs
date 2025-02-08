@@ -6,7 +6,7 @@
 /// aplicando un timeout individual por cada intento y un timeout global para la operación completa.
 /// Además, se controla el número máximo de intentos permitidos.
 /// </summary>
-public interface IRetryPolicy
+public interface IRetryPolicyService
 {
     
         /// <summary>

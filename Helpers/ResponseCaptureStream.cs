@@ -5,15 +5,10 @@ namespace SPOrchestratorAPI.Helpers
     /// <summary>
     /// Un wrapper de Stream que reenvía todas las operaciones al stream original y copia todo lo escrito en un MemoryStream interno para capturar el contenido.
     /// </summary>
-    public class ResponseCaptureStream : Stream
+    public class ResponseCaptureStream(Stream innerStream) : Stream
     {
-        private readonly Stream _innerStream;
+        private readonly Stream _innerStream = innerStream ?? throw new ArgumentNullException(nameof(innerStream));
         private readonly MemoryStream _copyStream = new MemoryStream();
-
-        public ResponseCaptureStream(Stream innerStream)
-        {
-            _innerStream = innerStream ?? throw new ArgumentNullException(nameof(innerStream));
-        }
 
         /// <summary>
         /// Obtiene el contenido capturado en forma de texto (UTF8).

@@ -1,22 +1,23 @@
 ﻿using System.Reactive.Linq;
 using SPOrchestratorAPI.Exceptions;
+using SPOrchestratorAPI.Models.DTOs.ConnectionDtos;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
-using SPOrchestratorAPI.Services.ConnectionTesting;
+using SPOrchestratorAPI.Services.ConnectionTestingServices;
 using SPOrchestratorAPI.Services.LoggingServices;
 
 namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
 {
     public class ServicioConfiguracionConnectionTestService(
         IServicioConfiguracionRepository repository,
-        IConnectionTester connectionTester,
+        IConnectionTesterService connectionTesterService,
         ILoggerService<ServicioConfiguracionConnectionTestService> logger)
         : IServicioConfiguracionConnectionTestService
     {
         private readonly IServicioConfiguracionRepository _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-        private readonly IConnectionTester _connectionTester = connectionTester ?? throw new ArgumentNullException(nameof(connectionTester));
+        private readonly IConnectionTesterService _connectionTesterService = connectionTesterService ?? throw new ArgumentNullException(nameof(connectionTesterService));
         private readonly ILoggerService<ServicioConfiguracionConnectionTestService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        public async Task<ConnectionTestResult> TestConnectionAsync(int idConfiguracion)
+        public async Task<ConnectionTestResultDto> TestConnectionAsync(int idConfiguracion)
         {
             _logger.LogInfo($"Iniciando test de conexión para la configuración con ID {idConfiguracion}.");
 
@@ -29,7 +30,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
 
             _logger.LogInfo($"Se obtuvo la configuración. Proveedor: {config.Provider}, Cadena: {config.ConexionBaseDatos}");
 
-            var result = await _connectionTester.TestConnectionAsync(config.ConexionBaseDatos, config.Provider);
+            var result = await _connectionTesterService.TestConnectionAsync(config.ConexionBaseDatos, config.Provider);
 
             if (result.IsSuccess)
             {

@@ -12,7 +12,7 @@ using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
 using SPOrchestratorAPI.Services.ApiTraceServices;
 using SPOrchestratorAPI.Services.AuditServices;
-using SPOrchestratorAPI.Services.ConnectionTesting;
+using SPOrchestratorAPI.Services.ConnectionTestingServices;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ParameterServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
@@ -64,7 +64,7 @@ builder.Services.AddScoped<IApiTraceRepository, ApiTraceRepository>();
 
 builder.Services.AddScoped<IServicioService, ServicioService>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
-builder.Services.AddScoped<IConnectionTester, ConnectionTester>();
+builder.Services.AddScoped<IConnectionTesterService, ConnectionTesterService>();
 builder.Services.AddScoped<IServicioConfiguracionConnectionTestService, ServicioConfiguracionConnectionTestService>();
 builder.Services.AddScoped<IStoredProcedureService, StoredProcedureService>();
 builder.Services.AddScoped<IParameterService, ParameterService>();

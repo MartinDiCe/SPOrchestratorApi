@@ -8,7 +8,7 @@ namespace SPOrchestratorAPI.Helpers
     /// Se espera que la cadena contenga valores separados por ';' sin espacios.
     /// Cada token debe cumplir:
     /// - Solo se permiten letras, dígitos, guiones (-) y guiones bajos (_).
-    /// - Un guión o guión bajo debe estar intercalado entre caracteres alfanuméricos.
+    /// - Un guion o guion bajo debe estar intercalado entre caracteres alfanuméricos.
     /// - No se permiten las secuencias "-_" ni "_-".
     /// </summary>
     public static class ParametrosHelper
@@ -44,7 +44,7 @@ namespace SPOrchestratorAPI.Helpers
             
             // Expresión regular:
             // - Empieza con una letra o dígito.
-            // - Permite letras o dígitos, o un guión (-) o guión bajo (_) siempre que esté seguido de una letra o dígito.
+            // - Permite letras o dígitos, o un guion (-) o guion bajo (_) siempre que esté seguido de una letra o dígito.
             // - Con la negativa lookahead (?!.*(?:-_|_-)) se evita que existan las secuencias "-_" o "_-".
             var regex = new Regex("^(?!.*(?:-_|_-))[A-Za-z0-9](?:[A-Za-z0-9]|[-_](?=[A-Za-z0-9]))*$");
 

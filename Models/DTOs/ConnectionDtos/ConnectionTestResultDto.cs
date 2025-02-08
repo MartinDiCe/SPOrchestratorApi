@@ -1,6 +1,6 @@
-﻿namespace SPOrchestratorAPI.Services.ConnectionTesting
+﻿namespace SPOrchestratorAPI.Models.DTOs.ConnectionDtos
 {
-    public class ConnectionTestResult
+    public class ConnectionTestResultDto
     {
         /// <summary>
         /// Indica si la conexión fue exitosa.

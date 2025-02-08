@@ -1,16 +1,16 @@
-﻿using SPOrchestratorAPI.Services.Breaker;
+﻿using SPOrchestratorAPI.Services.BreakerServices;
 
 namespace SPOrchestratorAPI.Services.RetriesService
 {
     /// <inheritdoc />
-    public class RetryPolicy : IRetryPolicy
+    public class RetryPolicyService : IRetryPolicyService
     {
-        private readonly ICircuitBreaker _circuitBreaker;
-        private readonly ILogger<RetryPolicy> _logger;
+        private readonly ICircuitBreakerService _circuitBreakerService;
+        private readonly ILogger<RetryPolicyService> _logger;
 
-        public RetryPolicy(ICircuitBreaker circuitBreaker, ILogger<RetryPolicy> logger)
+        public RetryPolicyService(ICircuitBreakerService circuitBreakerService, ILogger<RetryPolicyService> logger)
         {
-            _circuitBreaker = circuitBreaker ?? throw new ArgumentNullException(nameof(circuitBreaker));
+            _circuitBreakerService = circuitBreakerService ?? throw new ArgumentNullException(nameof(circuitBreakerService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -23,7 +23,7 @@ namespace SPOrchestratorAPI.Services.RetriesService
             _logger.LogInformation("Inicio de ejecución con RetryPolicy. Timeout por intento: {PerAttemptTimeoutMs} ms, Timeout global: {MaxGlobalTimeoutMs} ms, Máximo de intentos: {MaxAttempts}.",
                 perAttemptTimeoutMs, maxGlobalTimeoutMs, maxAttempts);
 
-            if (_circuitBreaker.IsOpen())
+            if (_circuitBreakerService.IsOpen())
             {
                 _logger.LogWarning("Circuit breaker abierto. No se permite la ejecución.");
                 throw new Exception("El sistema está en mantenimiento temporal, intente más tarde.");
@@ -45,14 +45,14 @@ namespace SPOrchestratorAPI.Services.RetriesService
                         _logger.LogInformation("Intento {Attempt} iniciado.", attempts + 1);
                         T result = await action(cts.Token);
                         _logger.LogInformation("Intento {Attempt} exitoso.", attempts + 1);
-                        _circuitBreaker.RecordSuccess();
+                        _circuitBreakerService.RecordSuccess();
                         return result;
                     }
                     catch (Exception ex) when (IsTransientError(ex))
                     {
                         _logger.LogWarning(ex, "Error transitorio en el intento {Attempt}.", attempts + 1);
-                        _circuitBreaker.RecordFailure();
-                        if (_circuitBreaker.IsOpen())
+                        _circuitBreakerService.RecordFailure();
+                        if (_circuitBreakerService.IsOpen())
                         {
                             _logger.LogError("Circuit breaker se abrió después de {Attempt} intentos.", attempts + 1);
                             throw new Exception("El sistema está en mantenimiento temporal, intente más tarde.");

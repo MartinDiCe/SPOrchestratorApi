@@ -63,7 +63,7 @@ namespace SPOrchestratorAPI.Middleware
                     HttpResponseCode = context.Response.StatusCode
                 };
                 
-                SPOrchestratorAPI.Traces.ApiTraceBus.TraceSubject.OnNext(trace);
+                Traces.ApiTraceBus.TraceSubject.OnNext(trace);
                 return Task.CompletedTask;
             });
 

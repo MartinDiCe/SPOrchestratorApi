@@ -1,6 +1,6 @@
-﻿namespace SPOrchestratorAPI.Services.Breaker;
+﻿namespace SPOrchestratorAPI.Services.BreakerServices;
 
-public interface ICircuitBreaker
+public interface ICircuitBreakerService
 {
     /// <summary>
     /// Indica si el circuito se encuentra abierto. Si está abierto y el período de enfriamiento se ha cumplido,

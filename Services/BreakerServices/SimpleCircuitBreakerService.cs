@@ -1,25 +1,25 @@
-﻿namespace SPOrchestratorAPI.Services.Breaker
+﻿namespace SPOrchestratorAPI.Services.BreakerServices
 {
     /// <summary>
     /// Implementa la lógica de un Circuit Breaker simple para controlar el flujo de ejecución en caso de múltiples fallos.
     /// Registra fallos y, si se supera el umbral configurado, abre el circuito por un tiempo determinado.
     /// </summary>
-    public class SimpleCircuitBreaker : ICircuitBreaker
+    public class SimpleCircuitBreakerService : ICircuitBreakerService
     {
         private readonly int _failureThreshold;
         private readonly TimeSpan _openDuration;
         private int _failureCount = 0;
         private DateTime _lastFailureTime = DateTime.MinValue;
         private bool _isOpen = false;
-        private readonly ILogger<SimpleCircuitBreaker> _logger;
+        private readonly ILogger<SimpleCircuitBreakerService> _logger;
 
         /// <summary>
-        /// Crea una instancia de <see cref="SimpleCircuitBreaker"/>.
+        /// Crea una instancia de <see cref="SimpleCircuitBreakerService"/>.
         /// </summary>
         /// <param name="failureThreshold">Número de fallos consecutivos permitidos antes de abrir el circuito.</param>
         /// <param name="openDuration">Tiempo durante el cual el circuito permanecerá abierto antes de intentar cerrarlo.</param>
         /// <param name="logger">Logger para registrar información de la operación del Circuit Breaker.</param>
-        public SimpleCircuitBreaker(int failureThreshold, TimeSpan openDuration, ILogger<SimpleCircuitBreaker> logger)
+        public SimpleCircuitBreakerService(int failureThreshold, TimeSpan openDuration, ILogger<SimpleCircuitBreakerService> logger)
         {
             _failureThreshold = failureThreshold;
             _openDuration = openDuration;
