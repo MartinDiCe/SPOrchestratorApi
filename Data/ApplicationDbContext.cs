@@ -18,6 +18,8 @@ public class ApplicationDbContext : DbContext
     
     public DbSet<Servicio>? Servicio { get; set; }
     public DbSet<ServicioConfiguracion>? ServicioConfiguracion { get; set; }
+    public DbSet<Parameter> Parameters { get; set; } = null!;
+    public DbSet<ApiTrace> ApiTraces { get; set; } = null!;
 
     public override int SaveChanges()
     {

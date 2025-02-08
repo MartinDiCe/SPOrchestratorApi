@@ -6,11 +6,15 @@ using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Middleware;
+using SPOrchestratorAPI.Models.Repositories.ApiTraceRepositories;
+using SPOrchestratorAPI.Models.Repositories.ParameterRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
+using SPOrchestratorAPI.Services.ApiTraceServices;
 using SPOrchestratorAPI.Services.AuditServices;
 using SPOrchestratorAPI.Services.ConnectionTesting;
 using SPOrchestratorAPI.Services.LoggingServices;
+using SPOrchestratorAPI.Services.ParameterServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
@@ -66,6 +70,8 @@ builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
 builder.Services.AddScoped<ILoggerService<ServicioRepository>, LoggerService<ServicioRepository>>();
 builder.Services.AddScoped<IServicioRepository, ServicioRepository>();
 builder.Services.AddScoped<IServicioConfiguracionRepository, ServicioConfiguracionRepository>();
+builder.Services.AddScoped<IParameterRepository, ParameterRepository>();
+builder.Services.AddScoped<IApiTraceRepository, ApiTraceRepository>();
 
 // Servicio de dominio para la entidad "Servicio"
 builder.Services.AddScoped<IServicioService, ServicioService>();
@@ -73,7 +79,8 @@ builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionS
 builder.Services.AddScoped<IConnectionTester, ConnectionTester>();
 builder.Services.AddScoped<IServicioConfiguracionConnectionTestService, ServicioConfiguracionConnectionTestService>();
 builder.Services.AddScoped<IStoredProcedureService, StoredProcedureService>();
-
+builder.Services.AddScoped<IParameterService, ParameterService>();
+builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
 
 // ---------------------------------------------------------
 // 5) Configurar logging
@@ -104,6 +111,9 @@ if (app.Environment.IsDevelopment())
 
 // Capturar excepciones y comunicarlas con el controlador
 app.UseMiddleware<ExceptionMiddleware>();
+
+//Captura de comunicación de nuestra API
+app.UseMiddleware<ApiTraceMiddleware>();
 
 // Autorización (si tienes endpoints que la requieran)
 app.UseAuthorization();
