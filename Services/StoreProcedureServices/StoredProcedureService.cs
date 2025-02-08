@@ -69,7 +69,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
 
                     _logger.LogInfo($"Se obtuvo la configuración. Proveedor: {config.Provider}, Cadena de conexión: {config.ConexionBaseDatos}, SP: {spName}");
 
-                    // Si se definen parámetros esperados en la configuración, validar:
                     if (!string.IsNullOrWhiteSpace(config.Parametros))
                     {
                         Dictionary<string, string> expectedParams;
@@ -83,7 +82,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                             throw new InvalidOperationException("No se pudo deserializar la configuración de parámetros esperados.", ex);
                         }
 
-                        // Los valores (nombres de parámetros) esperados se extraen del JSON
                         var expectedValues = new HashSet<string>(expectedParams.Values, StringComparer.OrdinalIgnoreCase);
                         var missingParams = new List<string>();
                         var extraParams = new List<string>();
@@ -132,7 +130,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                                     CommandType = CommandType.StoredProcedure
                                 })
                                 {
-                                    // Agregar solo los parámetros enviados (ya se validó que sean exactamente los esperados)
                                     if (parameters != null && parameters.Count > 0)
                                     {
                                         foreach (var kvp in parameters)
@@ -205,7 +202,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                         throw new ResourceNotFoundException($"No se encontró un servicio con el nombre '{serviceName}'.");
                     }
 
-                    // Obtener la configuración asociada al servicio (usamos la primera configuración encontrada)
                     var configs = await _configService.GetByServicioIdAsync(servicio.Id).FirstAsync();
                     if (configs == null || configs.Count == 0)
                     {
@@ -213,7 +209,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                     }
                     var config = configs[0];
 
-                    // Extraer el nombre del SP desde la configuración
                     var spName = config.NombreProcedimiento;
                     if (string.IsNullOrWhiteSpace(spName))
                     {
@@ -222,7 +217,7 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
 
                     _logger.LogInfo($"Se obtuvo la configuración para el servicio '{serviceName}'. Proveedor: {config.Provider}, Cadena de conexión: {config.ConexionBaseDatos}, SP: {spName}");
 
-                    // Validar que se envíen exactamente los parámetros esperados, si se han definido en la configuración.
+                    // Validar que se envíen exactamente los parámetros esperados, si se han definido
                     if (!string.IsNullOrWhiteSpace(config.Parametros))
                     {
                         Dictionary<string, string> expectedParams;
@@ -236,7 +231,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                             throw new InvalidOperationException("No se pudo deserializar la configuración de parámetros esperados.", ex);
                         }
 
-                        // Extraer los valores esperados (nombres de parámetros) de forma case-insensitive.
                         var expectedValues = new HashSet<string>(expectedParams.Values, StringComparer.OrdinalIgnoreCase);
                         var missingParams = new List<string>();
                         var extraParams = new List<string>();
@@ -245,7 +239,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                             ? new Dictionary<string, object>(parameters, StringComparer.OrdinalIgnoreCase)
                             : new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-                        // Validar que no falten parámetros
                         foreach (var expected in expectedValues)
                         {
                             if (!parametersCI.ContainsKey(expected))
@@ -254,7 +247,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                             }
                         }
 
-                        // Validar que no se hayan enviado parámetros extra
                         foreach (var key in parametersCI.Keys)
                         {
                             if (!expectedValues.Contains(key))
@@ -275,7 +267,6 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
 
                     object resultData;
 
-                    // Ejecutar el SP según el proveedor (implementado para SQL Server)
                     switch (config.Provider)
                     {
                         case DatabaseProvider.SqlServer:
@@ -288,15 +279,20 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                                     CommandType = CommandType.StoredProcedure
                                 })
                                 {
-                                    // Agregar los parámetros (ya validados)
                                     if (parameters != null && parameters.Count > 0)
                                     {
                                         foreach (var kvp in parameters)
                                         {
                                             var paramName = kvp.Key;
                                             object paramValue = kvp.Value ?? DBNull.Value;
+                                                    
+                                            // Si el valor es una cadena vacía, convertir a DBNull.Value
+                                            if (paramValue is string str && string.IsNullOrWhiteSpace(str))
+                                            {
+                                                paramValue = DBNull.Value;
+                                            }
 
-                                            // Convertir JsonElement a su valor nativo, si corresponde
+                                            // Si el valor es un JsonElement, extraer su valor nativo y convertir a DBNull.Value si es una cadena vacía.
                                             if (paramValue is JsonElement jsonElem)
                                             {
                                                 switch (jsonElem.ValueKind)
@@ -304,7 +300,7 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                                                     case JsonValueKind.String:
                                                         {
                                                             string? valueStr = jsonElem.GetString();
-                                                            paramValue = valueStr != null ? (object)valueStr : DBNull.Value;
+                                                            paramValue = string.IsNullOrWhiteSpace(valueStr) ? DBNull.Value : (object)valueStr;
                                                             break;
                                                         }
                                                     case JsonValueKind.Number:
