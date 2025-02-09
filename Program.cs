@@ -18,6 +18,7 @@ using SPOrchestratorAPI.Services.ParameterServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
+using SPOrchestratorAPI.Traces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,10 +31,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// Método de extensión para agregar y configurar Swagger.
 builder.Services.AddSwaggerConfiguration();
 
-// Configurar respuesta personalizada para errores de model binding.
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context => ModelValidationResponseFactory.CustomResponse(context.ModelState);
@@ -71,12 +70,23 @@ builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
 
 // ---------------------------------------------------------
-// 5) Configurar logging
+// 5) Configurar logging de forma condicional
 // ---------------------------------------------------------
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.Logging.SetMinimumLevel(LogLevel.Debug);
+if (builder.Environment.IsProduction())
+{
+    // En producción se eliminan los proveedores o se configura un nivel muy restrictivo.
+    builder.Logging.ClearProviders();
+    // Por ejemplo, si no deseas ningún log, no añadas ningún proveedor.
+    // O bien, si deseas loguear solo errores, podrías agregar un proveedor que lo haga.
+}
+else
+{
+    // En desarrollo, se agregan los proveedores para consola y debug, con un nivel detallado.
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+    builder.Logging.SetMinimumLevel(LogLevel.Debug);
+}
 
 var app = builder.Build();
 
@@ -89,7 +99,7 @@ DatabaseInitializer.Initialize(app.Services);
 // 7) Pipeline de Middlewares
 // ---------------------------------------------------------
 
-// En entornos de desarrollo, usar Swagger y un middleware de logging de request, response.
+// En entornos de desarrollo, usar Swagger y el middleware de logging de request/response.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -97,8 +107,9 @@ if (app.Environment.IsDevelopment())
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
 
-// Middleware que captura la traza de la API y la publica en el bus reactivo.
-// Con este enfoque, el middleware no bloquea la respuesta al cliente.
+// **IMPORTANTE:** Para capturar correctamente la respuesta (incluso en errores)
+// es recomendable que el middleware de trazas (ApiTraceMiddleware) envuelva todo el pipeline,
+// por lo que lo registramos **antes** de ExceptionMiddleware.
 app.UseMiddleware<ApiTraceMiddleware>();
 
 // Middleware para captura global de excepciones.
@@ -106,7 +117,7 @@ app.UseMiddleware<ExceptionMiddleware>();
 
 // Iniciar el suscriptor reactivo para las trazas.
 var scopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
-SPOrchestratorAPI.Traces.ApiTraceBus.StartTraceSubscriber(scopeFactory);
+ApiTraceBus.StartTraceSubscriber(scopeFactory);
 
 // Middleware de autorización (si es necesario).
 app.UseAuthorization();
