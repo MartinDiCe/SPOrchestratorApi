@@ -7,8 +7,9 @@ services:
     container_name: sporchestratorapi
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
     ports:
-      - "8001:80"
+      - "9000:80"
     restart: unless-stopped
     networks:
       appnetwork:

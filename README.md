@@ -158,8 +158,18 @@ La aplicación genera documentación OpenAPI de forma dinámica basándose en lo
 4. **Configurar el Nginx**
     Configurar Nginx como proxi reverso para redirigir la aplicación, entrando al contenedor de Nginx
 5. **Probar aplicación por ip fija o URL**
-   http://localhost
-   
+   http://localhost:[PORT]/swagger
+
+## Docker Example
+
+1. **Comando docker**
+- docker run -d -p 9000:80 --name sporchestratorapi -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi
+
+2. **Descripción**
+- Corremos docker en el puerto 9000, modo developer para activar logs (cambiar para producción) y forzando la exposición dle puerto 80 del contenedor.
+
+3. **URL Ejemplo**
+- http://localhost:9000/swagger
 
 ## Conclusión
 
