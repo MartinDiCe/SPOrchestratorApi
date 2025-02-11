@@ -80,10 +80,7 @@ builder.Services.AddMemoryCache();
 // ---------------------------------------------------------
 if (builder.Environment.IsProduction())
 {
-    // En producción se eliminan los proveedores o se configura un nivel muy restrictivo.
     builder.Logging.ClearProviders();
-    // Por ejemplo, si no deseas ningún log, no añadas ningún proveedor.
-    // O bien, si deseas loguear solo errores, podrías agregar un proveedor que lo haga.
 }
 else
 {

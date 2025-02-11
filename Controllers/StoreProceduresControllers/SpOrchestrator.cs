@@ -5,8 +5,7 @@ using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.DTOs.StoreProcedureDtos;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
 using System.Text;
-using SPOrchestratorAPI.Examples;
-using Swashbuckle.AspNetCore.Filters;
+
 
 namespace SPOrchestratorAPI.Controllers.StoreProceduresControllers
 {

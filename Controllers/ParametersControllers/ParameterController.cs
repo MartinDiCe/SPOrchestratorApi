@@ -4,7 +4,7 @@ using SPOrchestratorAPI.Models.DTOs.ParameterDtos;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services.ParameterServices;
 
-namespace SPOrchestratorAPI.Controllers.ParametersController
+namespace SPOrchestratorAPI.Controllers.ParametersControllers
 {
     /// <summary>
     /// Controlador para gestionar operaciones CRUD sobre la entidad <see cref="Parameter"/>.
