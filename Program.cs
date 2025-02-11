@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
+using SPOrchestratorAPI.Examples;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Middleware;
@@ -19,6 +20,7 @@ using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
 using SPOrchestratorAPI.Traces;
+using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,15 +71,16 @@ builder.Services.AddScoped<IStoredProcedureService, StoredProcedureService>();
 builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
 
+builder.Services.AddSwaggerExamplesFromAssemblyOf<StoredProcedureExecutionRequestMultipleExamples>();
+
+builder.Services.AddMemoryCache();
+
 // ---------------------------------------------------------
 // 5) Configurar logging de forma condicional
 // ---------------------------------------------------------
 if (builder.Environment.IsProduction())
 {
-    // En producción se eliminan los proveedores o se configura un nivel muy restrictivo.
     builder.Logging.ClearProviders();
-    // Por ejemplo, si no deseas ningún log, no añadas ningún proveedor.
-    // O bien, si deseas loguear solo errores, podrías agregar un proveedor que lo haga.
 }
 else
 {
@@ -106,6 +109,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
+
+// Aquí decides si en producción quieres exponer Swagger o no
+// app.UseSwaggerConfiguration(); // Si deseas exponer Swagger en producción, activa esta línea
+
 
 // **IMPORTANTE:** Para capturar correctamente la respuesta (incluso en errores)
 // es recomendable que el middleware de trazas (ApiTraceMiddleware) envuelva todo el pipeline,

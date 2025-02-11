@@ -147,6 +147,30 @@ La aplicación genera documentación OpenAPI de forma dinámica basándose en lo
 5. **Respuesta:**  
    Devuelve resultados en formato JSON o como archivos (CSV), según lo solicitado.
 
+## Documentación Docker 
+
+1. **Contruir ISO**
+   docker build -t sporchestratorapi:latest .
+2. **Contruir Compose**
+   docker-compose build
+3. **Levantar Compose para los contenedores en modo detached**
+   docker-compose up -d
+4. **Configurar el Nginx**
+    Configurar Nginx como proxi reverso para redirigir la aplicación, entrando al contenedor de Nginx
+5. **Probar aplicación por ip fija o URL**
+   http://localhost:[PORT]/swagger
+
+## Docker Example
+
+1. **Comando docker**
+- docker run -d -p 9000:80 --name sporchestratorapi -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi
+
+2. **Descripción**
+- Corremos docker en el puerto 9000, modo developer para activar logs (cambiar para producción) y forzando la exposición dle puerto 80 del contenedor.
+
+3. **URL Ejemplo**
+- http://localhost:9000/swagger
+
 ## Conclusión
 
 **SPOrchestratorAPI** centraliza la ejecución de stored procedures mediante una configuración dinámica y flexible. Gracias a su arquitectura modular basada en el enfoque B y principios SOLID, se pueden agregar nuevos procedimientos sin modificar el código. La validación estricta de parámetros, la transformación de resultados y el manejo centralizado de errores y logs garantizan una solución robusta, escalable y fácil de mantener.

@@ -20,9 +20,14 @@
       <PackageReference Include="Oracle.ManagedDataAccess" Version="23.7.0" />
       <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.7.0" />
       <PackageReference Include="Swashbuckle.AspNetCore" Version="6.0.7" />
+      <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="8.0.2" />
       <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
       <PackageReference Include="System.Linq.Async" Version="6.0.1" />
       <PackageReference Include="System.Reactive" Version="6.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include=".github\workflows\dotnet.yml" />
     </ItemGroup>
 
 </Project>

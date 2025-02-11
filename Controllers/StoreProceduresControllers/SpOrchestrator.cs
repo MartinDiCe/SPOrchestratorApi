@@ -6,6 +6,7 @@ using SPOrchestratorAPI.Models.DTOs.StoreProcedureDtos;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
 using System.Text;
 
+
 namespace SPOrchestratorAPI.Controllers.StoreProceduresControllers
 {
     /// <summary>
@@ -14,6 +15,7 @@ namespace SPOrchestratorAPI.Controllers.StoreProceduresControllers
     /// La configuración (nombre del SP, cadena de conexión, proveedor y parámetros esperados)
     /// se obtiene de la base de datos.
     /// </summary>
+    [ApiExplorerSettings(GroupName = "Public")]
     [ApiController]
     [Route("api/[controller]")]
     public class SpOrchestrator(IStoredProcedureService spService) : ControllerBase
