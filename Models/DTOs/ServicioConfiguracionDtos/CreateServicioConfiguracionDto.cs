@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.Enums;
 using SPOrchestratorAPI.Validations;
@@ -51,4 +52,19 @@ public class CreateServicioConfiguracionDto
     /// </summary>
     [Required]
     public DatabaseProvider Provider { get; set; }
+    
+    /// <summary>
+    /// Tipo de configuración para el servicio, que define la acción a ejecutar (por ejemplo, StoredProcedure, VistaSql, EndPoint, etc.).
+    /// </summary>
+    [Required]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public TipoConfiguracion Tipo { get; set; }
+    
+    /// <summary>
+    /// Indica si la ejecución de la configuración se realizará de forma programada.
+    /// Si es <c>true</c>, se ejecutará según una programación definida; en caso contrario, se ejecutará de forma inmediata o manual.
+    /// </summary>
+    [Required]
+    public bool EsProgramado { get; set; } 
+    
 }

@@ -18,7 +18,9 @@ using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ParameterServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
+using SPOrchestratorAPI.Services.SPOrchestratorServices;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
+using SPOrchestratorAPI.Services.VistasSqlServices;
 using SPOrchestratorAPI.Traces;
 using Swashbuckle.AspNetCore.Filters;
 
@@ -67,9 +69,15 @@ builder.Services.AddScoped<IServicioService, ServicioService>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
 builder.Services.AddScoped<IConnectionTesterService, ConnectionTesterService>();
 builder.Services.AddScoped<IServicioConfiguracionConnectionTestService, ServicioConfiguracionConnectionTestService>();
+builder.Services.AddScoped<IStoredProcedureExecutorFactory, StoredProcedureExecutorFactory>();
+builder.Services.AddScoped<IStoredProcedureTestService, StoredProcedureTestService>();
 builder.Services.AddScoped<IStoredProcedureService, StoredProcedureService>();
+builder.Services.AddScoped<ISpOrchestratorService, SpOrchestratorService>();
+builder.Services.AddScoped<IVistaSqlService, VistaSqlService>();
 builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
+
+
 
 builder.Services.AddSwaggerExamplesFromAssemblyOf<StoredProcedureExecutionRequestMultipleExamples>();
 

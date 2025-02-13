@@ -95,6 +95,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
                 existing.MaxReintentos = config.MaxReintentos;
                 existing.TimeoutSegundos = config.TimeoutSegundos;
                 existing.Provider = config.Provider;
+                existing.Tipo = config.Tipo;
+                existing.EsProgramado = config.EsProgramado;
                 existing.UpdatedAt = DateTime.UtcNow;
                 existing.UpdatedBy = "System";
 
