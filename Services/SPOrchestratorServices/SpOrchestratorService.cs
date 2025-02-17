@@ -1,6 +1,7 @@
 ﻿﻿using System.Reactive.Linq;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Models.Enums;
+using SPOrchestratorAPI.Services.EndpointServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioServices;
 using SPOrchestratorAPI.Services.StoreProcedureServices;
@@ -12,6 +13,7 @@ namespace SPOrchestratorAPI.Services.SPOrchestratorServices
         IServicioConfiguracionService configService,
         IStoredProcedureService storedProcedureService,
         IVistaSqlService vistaSqlService,
+        IEndpointService endpointService,
         IServicioService servicioService)
         : ISpOrchestratorService
     {
@@ -43,6 +45,10 @@ namespace SPOrchestratorAPI.Services.SPOrchestratorServices
                 else if (config.Tipo == TipoConfiguracion.VistaSql)
                 {
                     return await vistaSqlService.EjecutarVistaPorNombreAsync(serviceName, parameters).FirstAsync();
+                }
+                else if (config.Tipo == TipoConfiguracion.EndPoint)
+                {
+                    return await endpointService.EjecutarEndpointPorNombreAsync(serviceName, parameters).FirstAsync();
                 }
                 else
                 {

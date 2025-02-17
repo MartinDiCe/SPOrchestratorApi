@@ -63,7 +63,16 @@ public class CreateServicioConfiguracionDto
     /// Indica si la ejecución de la configuración se realizará de forma programada.
     /// Si es <c>true</c>, se ejecutará según una programación definida; en caso contrario, se ejecutará de forma inmediata o manual.
     /// </summary>
-    [Required]
     public bool EsProgramado { get; set; } 
+    
+    /// <summary>
+    /// Indica si se deben guardar los registros de la ejecución para auditoría o reprocesamiento.
+    /// </summary>
+    public bool GuardarRegistros { get; set; } = false;
+        
+    /// <summary>
+    /// Indica si, al finalizar la ejecución del proceso, se debe invocar un proceso de continuación.
+    /// </summary>
+    public bool ContinuarCon { get; set; } = false;
     
 }
