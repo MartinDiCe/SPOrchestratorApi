@@ -60,9 +60,6 @@ namespace SPOrchestratorAPI.Models.Repositories.ServicioProgramacionRepositories
                 {
                     _logger.LogInfo("Creando una nueva programación de servicio...");
                     
-                    // Nota: La validación del formato CRON se realizará en la capa de servicio,
-                    // ya que es una lógica de negocio. El repositorio se enfoca en la persistencia.
-                    
                     _dbSet.Add(programacion);
                     await _context.SaveChangesAsync();
 
@@ -96,6 +93,8 @@ namespace SPOrchestratorAPI.Models.Repositories.ServicioProgramacionRepositories
 
                     existing.ServicioConfiguracionId = programacion.ServicioConfiguracionId;
                     existing.CronExpression = programacion.CronExpression;
+                    existing.StartDate = programacion.StartDate;
+                    existing.EndDate = programacion.EndDate;
                     existing.UpdatedAt = DateTime.UtcNow;
                     existing.UpdatedBy = "System";
 

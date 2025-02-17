@@ -14,6 +14,7 @@ using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
 using SPOrchestratorAPI.Services.ApiTraceServices;
 using SPOrchestratorAPI.Services.AuditServices;
 using SPOrchestratorAPI.Services.ConnectionTestingServices;
+using SPOrchestratorAPI.Services.EndpointServices;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ParameterServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
@@ -77,7 +78,7 @@ builder.Services.AddScoped<IVistaSqlService, VistaSqlService>();
 builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
 
-
+builder.Services.AddHttpClient<IEndpointService, EndpointService>();
 
 builder.Services.AddSwaggerExamplesFromAssemblyOf<StoredProcedureExecutionRequestMultipleExamples>();
 

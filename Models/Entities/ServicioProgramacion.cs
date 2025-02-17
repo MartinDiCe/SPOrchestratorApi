@@ -39,5 +39,16 @@ namespace SPOrchestratorAPI.Models.Entities
         /// </summary>
         [Required]
         public string CronExpression { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Fecha de comienzo
+        /// </summary>
+        public DateTime StartDate { get; set; }
+        
+        /// <summary>
+        /// Fecha Fin
+        /// </summary>
+        public DateTime EndDate { get; set; }
+        
     }
 }

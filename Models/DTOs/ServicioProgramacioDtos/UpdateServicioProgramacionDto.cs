@@ -19,4 +19,15 @@ public class UpdateServicioProgramacionDto
     /// Nueva expresión CRON para definir la planificación.
     /// </summary>
     public string CronExpression { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Fecha de comienzo
+    /// </summary>
+    public DateTime StartDate { get; set; }
+        
+    /// <summary>
+    /// Fecha Fin
+    /// </summary>
+    public DateTime EndDate { get; set; }
+    
 }

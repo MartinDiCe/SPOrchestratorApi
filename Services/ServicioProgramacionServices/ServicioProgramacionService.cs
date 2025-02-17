@@ -1,8 +1,8 @@
-﻿using SPOrchestratorAPI.Models.DTOs.ServicioProgramacioDtos;
+﻿using SPOrchestratorAPI.Helpers;
+using SPOrchestratorAPI.Models.DTOs.ServicioProgramacioDtos;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories.ServicioProgramacionRepositories;
 using SPOrchestratorAPI.Services.LoggingServices;
-using SPOrchestratorAPI.Validations;
 
 namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
 {
@@ -33,6 +33,8 @@ namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
             {
                 ServicioConfiguracionId = dto.ServicioConfiguracionId,
                 CronExpression = dto.CronExpression,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
                 ServicioConfiguracion = new ServicioConfiguracion
                 {
                     Id = dto.ServicioConfiguracionId,
@@ -64,6 +66,8 @@ namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
             {
                 ServicioConfiguracionId = dto.ServicioConfiguracionId,
                 CronExpression = dto.CronExpression,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
                 ServicioConfiguracion = new ServicioConfiguracion
                 {
                     Id = dto.ServicioConfiguracionId,

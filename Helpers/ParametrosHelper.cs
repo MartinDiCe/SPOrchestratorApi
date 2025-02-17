@@ -23,29 +23,22 @@ namespace SPOrchestratorAPI.Helpers
         /// <exception cref="ArgumentException">Si el formato no es correcto.</exception>
         public static string? ValidarYTransformar(string? parametros)
         {
-            // Si el parámetro es nulo o vacío, se devuelve null.
             if (string.IsNullOrWhiteSpace(parametros))
             {
                 return null;
             }
             
-            // No se permiten espacios en la cadena completa.
             if (parametros.Contains(" "))
             {
                 throw new ArgumentException("No se permiten espacios en los parámetros. Separe los nombres con ';' sin espacios.");
             }
             
-            // Separamos la cadena por el delimitador ';'
             var tokens = parametros.Split(';', StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length == 0)
             {
                 throw new ArgumentException("Debe proporcionar al menos un parámetro separado por ';'.");
             }
             
-            // Expresión regular:
-            // - Empieza con una letra o dígito.
-            // - Permite letras o dígitos, o un guion (-) o guion bajo (_) siempre que esté seguido de una letra o dígito.
-            // - Con la negativa lookahead (?!.*(?:-_|_-)) se evita que existan las secuencias "-_" o "_-".
             var regex = new Regex("^(?!.*(?:-_|_-))[A-Za-z0-9](?:[A-Za-z0-9]|[-_](?=[A-Za-z0-9]))*$");
 
             var diccionario = new Dictionary<string, string>();
@@ -59,8 +52,8 @@ namespace SPOrchestratorAPI.Helpers
                 diccionario[$"valor{i + 1}"] = token;
             }
             
-            // Serializamos el diccionario a JSON.
             return JsonSerializer.Serialize(diccionario);
+            
         }
     }
 }

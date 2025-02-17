@@ -5,5 +5,6 @@ public enum DatabaseProvider
     SqlServer,
     MySql,
     PostgreSql,
-    Oracle
+    Oracle,
+    EndPoint
 }

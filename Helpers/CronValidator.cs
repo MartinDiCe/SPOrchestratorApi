@@ -1,4 +1,4 @@
-﻿namespace SPOrchestratorAPI.Validations
+﻿namespace SPOrchestratorAPI.Helpers
 {
     /// <summary>
     /// Utilidad para validar expresiones CRON.

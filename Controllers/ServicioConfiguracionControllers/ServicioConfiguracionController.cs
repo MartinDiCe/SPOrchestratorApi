@@ -15,9 +15,6 @@ namespace SPOrchestratorAPI.Controllers.ServicioConfiguracionControllers
     {
         private readonly IServicioConfiguracionService _service = service ?? throw new ArgumentNullException(nameof(service));
 
-        /// <summary>
-        /// Crea una nueva configuración de servicio.
-        /// </summary>
         [HttpPost("create")]
         public async Task<IActionResult> CreateAsync([FromBody] CreateServicioConfiguracionDto dto)
         {
