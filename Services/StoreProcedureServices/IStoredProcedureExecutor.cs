@@ -1,36 +1,46 @@
-﻿namespace SPOrchestratorAPI.Services.StoreProcedureServices;
+﻿using SPOrchestratorAPI.Models.Entities;
 
-/// <summary>
-/// Define la interfaz para la ejecución directa de un Stored Procedure basado en el nombre del servicio.
-/// Esta interfaz se encarga de obtener la configuración del SP, validar los parámetros y ejecutar el SP utilizando
-/// la configuración almacenada en la base de datos.
-/// </summary>
-public interface IStoredProcedureExecutor
+namespace SPOrchestratorAPI.Services.StoreProcedureServices
 {
-    
     /// <summary>
-    /// Ejecuta el stored procedure asociado al servicio especificado utilizando los parámetros proporcionados.
-    /// La configuración completa (nombre del SP, cadena de conexión, proveedor y parámetros esperados) se obtiene
-    /// a partir del nombre del servicio.
+    /// Define los métodos para ejecutar un stored procedure según el proveedor de base de datos.
+    /// Esta interfaz permite ejecutar procedimientos almacenados de forma asíncrona,
+    /// ya sea para operaciones que no retornan datos (como Insert, Update, Delete) o
+    /// para aquellas que sí retornan datos.
     /// </summary>
-    /// <param name="serviceName">
-    /// El nombre del servicio (corresponde a <see cref="Servicio.Name"/>) para el cual se debe ejecutar el stored procedure.
-    /// </param>
-    /// <param name="parameters">
-    /// Un diccionario opcional que contiene los valores de los parámetros a enviar al stored procedure.
-    /// Si es <c>null</c> o está vacío, el stored procedure se ejecutará sin parámetros.
-    /// </param>
-    /// <param name="cancellationToken">
-    /// Un token de cancelación que permite abortar la operación en caso de que se exceda el timeout individual de la ejecución.
-    /// </param>
-    /// <returns>
-    /// Una tarea que, al completarse, devuelve un objeto que representa el resultado de la ejecución del stored procedure.
-    /// Por ejemplo, puede ser una lista de diccionarios, donde cada diccionario representa una fila del resultado.
-    /// </returns>
-    /// <remarks>
-    /// Esta interfaz se utiliza en conjunto con políticas de reintentos y timeout (por ejemplo, mediante la implementación
-    /// de <see cref="IRetryPolicy"/>) para gestionar de forma reactiva la ejecución de stored procedures.
-    /// </remarks>
-    Task<object> ExecuteAsync(string serviceName, IDictionary<string, object>? parameters, CancellationToken cancellationToken);
-    
+    public interface IStoredProcedureExecutor
+    {
+        /// <summary>
+        /// Ejecuta un procedimiento almacenado de manera asíncrona sin esperar resultados (non-query).
+        /// </summary>
+        /// <param name="config">
+        /// La configuración que contiene la información necesaria para la ejecución del stored procedure,
+        /// como el nombre del SP, la cadena de conexión, el proveedor y la definición de parámetros esperados.
+        /// </param>
+        /// <param name="parameters">
+        /// Diccionario opcional con los parámetros que se enviarán al stored procedure. Las claves deben
+        /// corresponder a los nombres de los parámetros definidos en el SP.
+        /// </param>
+        /// <returns>
+        /// Una tarea que retorna el número de filas afectadas por la ejecución del stored procedure.
+        /// </returns>
+        Task<int> ExecuteNonQueryAsync(ServicioConfiguracion config, IDictionary<string, object>? parameters);
+
+        /// <summary>
+        /// Ejecuta un procedimiento almacenado de manera asíncrona y retorna datos.
+        /// </summary>
+        /// <param name="config">
+        /// La configuración que contiene la información necesaria para la ejecución del stored procedure,
+        /// incluyendo el nombre del SP, la cadena de conexión, el proveedor y la configuración de parámetros.
+        /// </param>
+        /// <param name="parameters">
+        /// Diccionario opcional con los parámetros que se enviarán al stored procedure. Las claves deben
+        /// corresponder a los nombres de los parámetros definidos en el SP.
+        /// </param>
+        /// <returns>
+        /// Una tarea que retorna un objeto que contiene los datos obtenidos, típicamente una lista de diccionarios,
+        /// donde cada diccionario representa una fila del resultado.
+        /// </returns>
+        Task<object> ExecuteReaderAsync(ServicioConfiguracion config, IDictionary<string, object>? parameters);
+    }
 }

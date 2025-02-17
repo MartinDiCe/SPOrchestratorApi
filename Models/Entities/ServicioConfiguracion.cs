@@ -34,7 +34,7 @@ public class ServicioConfiguracion : AuditEntities
     public required Servicio Servicio { get; set; }
 
     /// <summary>
-    /// Nombre del procedimiento almacenado (Stored Procedure) que el servicio ejecutará.
+    /// Nombre del procedimiento almacenado (Stored Procedure), VistaSQL o ENDPOINT que el servicio ejecutará.
     /// </summary>
     [Required]
     [MaxLength(200)]
@@ -66,5 +66,19 @@ public class ServicioConfiguracion : AuditEntities
     /// Base de datos de la conexion.
     /// </summary>
     [Required]
-    public DatabaseProvider Provider { get; set; } = DatabaseProvider.SqlServer;
+    public DatabaseProvider Provider { get; set; } 
+    
+    /// <summary>
+    /// Tipo de configuración para el servicio, que define la acción a ejecutar (por ejemplo, StoredProcedure, VistaSql, EndPoint, etc.).
+    /// </summary>
+    [Required]
+    public TipoConfiguracion Tipo { get; set; } 
+    
+    /// <summary>
+    /// Indica si la ejecución de la configuración se realizará de forma programada.
+    /// Si es <c>true</c>, se ejecutará según una programación definida; en caso contrario, se ejecutará de forma inmediata o manual.
+    /// </summary>
+    [Required]
+    public bool EsProgramado { get; set; } 
+
 }

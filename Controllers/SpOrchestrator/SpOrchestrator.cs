@@ -1,13 +1,12 @@
 ﻿using System.Reactive.Linq;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.DTOs.StoreProcedureDtos;
-using SPOrchestratorAPI.Services.StoreProcedureServices;
-using System.Text;
+using SPOrchestratorAPI.Services.SPOrchestratorServices;
 
-
-namespace SPOrchestratorAPI.Controllers.StoreProceduresControllers
+namespace SPOrchestratorAPI.Controllers.SpOrchestrator
 {
     /// <summary>
     /// Controlador para la ejecución final de stored procedures.
@@ -18,9 +17,9 @@ namespace SPOrchestratorAPI.Controllers.StoreProceduresControllers
     [ApiExplorerSettings(GroupName = "Public")]
     [ApiController]
     [Route("api/[controller]")]
-    public class SpOrchestrator(IStoredProcedureService spService) : ControllerBase
+    public class SpOrchestrator(ISpOrchestratorService spService) : ControllerBase
     {
-        private readonly IStoredProcedureService _spService =
+        private readonly ISpOrchestratorService _spService =
             spService ?? throw new ArgumentNullException(nameof(spService));
 
         /// <summary>
@@ -38,7 +37,7 @@ namespace SPOrchestratorAPI.Controllers.StoreProceduresControllers
             try
             {
                 var result = await _spService
-                    .EjecutarSpConRespuestaPorNombreAsync(request.ServiceName, request.Parameters)
+                    .EjecutarPorNombreAsync(request.ServiceName, request.Parameters)
                     .FirstAsync();
 
                 if (request.IsFile)

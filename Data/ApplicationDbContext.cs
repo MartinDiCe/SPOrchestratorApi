@@ -40,6 +40,11 @@ namespace SPOrchestratorAPI.Data
         public DbSet<ApiTrace> ApiTraces { get; set; } = null!;
 
         /// <summary>
+        /// Conjunto de datos para la entidad <see cref="ServicioProgramacion"/>.
+        /// </summary>
+        public DbSet<ServicioProgramacion> ServicioProgramacion { get; set; } = null!;
+        
+        /// <summary>
         /// Guarda los cambios en la base de datos, aplicando previamente la auditoría a las entidades modificadas.
         /// </summary>
         /// <returns>El número de registros afectados.</returns>

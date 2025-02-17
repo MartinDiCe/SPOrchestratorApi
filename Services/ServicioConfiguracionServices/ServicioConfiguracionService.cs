@@ -3,6 +3,7 @@ using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.DTOs.ServicioConfiguracionDtos;
 using SPOrchestratorAPI.Models.Entities;
+using SPOrchestratorAPI.Models.Enums;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ServicioServices;
@@ -86,10 +87,11 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                                     ServicioId = dto.ServicioId,
                                     NombreProcedimiento = dto.NombreProcedimiento,
                                     ConexionBaseDatos = dto.ConexionBaseDatos,
-                                    // Se asigna el JSON transformado al campo Parametros
                                     Parametros = parametrosJson,
                                     MaxReintentos = dto.MaxReintentos,
                                     TimeoutSegundos = dto.TimeoutSegundos,
+                                    Tipo = dto.Tipo,
+                                    EsProgramado = dto.EsProgramado,
                                     CreatedAt = DateTime.UtcNow,
                                     CreatedBy = "System",
                                     Servicio = servicioExistente
@@ -121,7 +123,12 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                 {
                     throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
                 }
-        
+                
+                if (!Enum.IsDefined(typeof(TipoConfiguracion), dto.Tipo))
+                {
+                    _logger.LogWarning("El valor de Tipo recibido no es válido. Se asigna el valor por defecto 'StoredProcedure'.");
+                    dto.Tipo = TipoConfiguracion.StoredProcedure;
+                }
                 
                 string? parametrosJson;
                 try
@@ -143,6 +150,8 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     MaxReintentos = dto.MaxReintentos,
                     TimeoutSegundos = dto.TimeoutSegundos,
                     Provider = dto.Provider,
+                    EsProgramado = dto.EsProgramado,
+                    Tipo = dto.Tipo,
                     Servicio = new Servicio { Id = dto.ServicioId }
                 };
 

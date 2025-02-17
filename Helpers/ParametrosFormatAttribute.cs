@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace SPOrchestratorAPI.Validations
+namespace SPOrchestratorAPI.Helpers
 {
     /// <summary>
     /// Atributo de validación para el formato de parámetros. 

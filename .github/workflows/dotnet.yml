@@ -1,4 +1,4 @@
-﻿name: .NET Build and Test
+﻿name: .NET Build, Test and Deploy to IIS
 
 on:
   push:
@@ -31,3 +31,14 @@ jobs:
       - name: Publish
         run: dotnet publish SPOrchestratorAPI.csproj -c Release -o ./publish --no-restore
 
+      # Paso de despliegue usando MSDeploy
+      - name: Deploy to IIS Server via MSDeploy
+        run: |
+          msdeploy.exe -verb:sync `
+            -source:contentPath="./publish" `
+            -dest:contentPath="SPOrchestratorAPI",computerName="https://$env:DEPLOY_SERVER:8172/msdeploy.axd",userName="$env:DEPLOY_USER",password="$env:DEPLOY_PASS",authType="Basic" `
+            -allowUntrusted
+        env:
+          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}   # Ej: 192.168.1.100
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PASS: ${{ secrets.DEPLOY_PASS }}

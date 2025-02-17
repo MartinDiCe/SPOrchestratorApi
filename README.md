@@ -1,179 +1,76 @@
-# SPOrchestratorAPI
+# SPOrchestratorAPI - Smart Process Orchestrator API
 
 ## Introducción
-**SPOrchestratorAPI** es un microservicio diseñado para ejecutar stored procedures de manera dinámica en diversas bases de datos. La configuración completa de cada SP (nombre, cadena de conexión, proveedor y parámetros esperados) se almacena en la base de datos, lo que permite agregar o modificar stored procedures sin necesidad de cambiar el código.
 
-El sistema sigue el los principios SOLID, utilizando programación reactiva para la ejecución y validación centralizada, y middlewares globales para el registro de logs y manejo de excepciones. Esto centraliza la lógica de negocio y la configuración, mientras que los controladores se mantienen delgados y se centran únicamente en la presentación.
+**Smart Process Orchestrator API** es un microservicio diseñado para orquestar la ejecución de procesos de manera dinámica y escalable. Inicialmente creado para ejecutar stored procedures en diversas bases de datos, el sistema ha evolucionado para soportar también la lectura de vistas SQL y la invocación de endpoints externos. Además, incorpora un módulo de programación que permite:
 
-## Proceso
+- Configurar la ejecución mediante expresiones CRON.
+- Decidir si se deben guardar los registros de la ejecución para auditoría.
+- Encadenar procesos ("continue with"): extraer datos de un proceso inicial y, para cada registro, invocar otro proceso de continuación.
 
-El flujo de trabajo del microservicio es el siguiente:
+La arquitectura se basa en los principios SOLID y utiliza programación reactiva para la ejecución y validación centralizada. Los middlewares globales se encargan del logging, manejo de excepciones y trazabilidad, dejando a los controladores la responsabilidad de la presentación.
 
-1. **Recepción de la Solicitud**
-   - Un cliente envía una petición HTTP al microservicio.
-   - La solicitud contiene el nombre del servicio a ejecutar y, opcionalmente, un diccionario con los valores de los parámetros.  
-     *Nota:* Para la ejecución final, el cliente solo envía el `serviceName` y `parameters`; el nombre del SP, la cadena de conexión, el proveedor y los parámetros esperados se obtienen de la configuración almacenada en la base de datos.
+## Proceso General
 
-2. **Validación de la Solicitud**
+1. **Recepción de la Solicitud**  
+   El cliente envía una petición HTTP al microservicio, especificando el `serviceName` y, opcionalmente, un diccionario de parámetros. Además, se puede incluir un flag `isFile` para definir el formato de la respuesta.
+
+2. **Validación y Configuración**
    - Se verifica que el servicio solicitado exista en la base de datos de configuración.
-   - Se valida que el diccionario de parámetros enviado coincida exactamente con los parámetros esperados definidos en la configuración (sin parámetros extra ni faltantes).
-   - Si la validación falla, se devuelve un error (por ejemplo, 400) con un mensaje descriptivo.
+   - Se valida que el diccionario de parámetros enviado coincida con lo definido en la configuración (sin parámetros extra ni faltantes).
+   - La configuración (almacenada en la entidad `ServicioConfiguracion`) incluye:
+      - **NombreProcedimiento:** Nombre del proceso (StoredProcedure, VistaSql o EndPoint).
+      - **ConexionBaseDatos:** Cadena de conexión para SP o vistas. Para EndPoints, se asigna el valor "No requiere" y se omite la validación.
+      - **Provider:** Proveedor de la base de datos (por ejemplo, SqlServer) o EndPoint.
+      - **Tipo:** Tipo de proceso (StoredProcedure, VistaSql o EndPoint).
+      - **Parametros:** Parámetros esperados (almacenados en formato JSON).
+      - **EsProgramado:** Flag que indica si la ejecución se realizará de forma programada.
+      - **ContinueWith:** Flag que habilita el siguiente servicio que continuará después del proceso configurado. Requiere asociar un servicio existente y configurado.
+      - **SalvarResponse:** Flag que habilita el guardado de los registros que se obtienen llamando a los servicios en una tabla del sistema.
+      - Se pueden configurar también políticas de reintento y timeout.
 
-3. **Obtención de Configuración del Servicio**
-   - Se consulta en la base de datos la configuración asociada al servicio, la cual incluye:
-      - El nombre del stored procedure (`NombreProcedimiento`).
-      - La cadena de conexión.
-      - El proveedor (por ejemplo, `SqlServer`).
-      - Los parámetros esperados (almacenados en formato JSON).
+3. **Ejecución del Proceso Inicial**  
+   Según el tipo de configuración, se ejecuta:
+   - **StoredProcedure:** Se conecta a la base de datos y se ejecuta el procedimiento con los parámetros proporcionados.
+   - **VistaSql:** Se construye dinámicamente una consulta (incluyendo cláusulas WHERE basadas en los parámetros) y se ejecuta para obtener los registros.
+   - **EndPoint:** Se invoca un servicio externo mediante HTTP (utilizando HttpClient).
 
-4. **Ejecución del Stored Procedure**
-   - Se establece conexión con la base de datos utilizando la cadena de conexión de la configuración.
-   - Se ejecuta el stored procedure con los parámetros proporcionados.
-   - Se captura el resultado mediante un `SqlDataReader` y se transforma a una estructura estándar (por ejemplo, una lista de diccionarios).
+4. **Orquestación y Continuación de Procesos**
+   - **Servicio de Programación:** Permite agendar ejecuciones periódicas mediante expresiones CRON y definir si se guardan los registros de la ejecución.
+   - **Flujo "Continue With":**
+      - Tras obtener los resultados del proceso inicial, se extraen campos específicos (por ejemplo, ID y descripción) de cada registro.
+      - Para cada registro, se invoca un proceso de continuación (por ejemplo, un endpoint) usando un mapeo configurable que asocia campos del registro con los parámetros esperados.
+      - Esto permite encadenar procesos sin modificar la lógica de cada etapa.
 
 5. **Transformación y Respuesta**
-   - Si el request especifica que la respuesta debe ser un archivo (flag `isFile` en el DTO), el controlador convierte el resultado (por ejemplo, el listado) a CSV mediante un helper y lo devuelve como archivo con el content type `text/csv`.
-   - Si no, el resultado se devuelve en formato JSON.
+   - Dependiendo del flag `isFile`, el resultado se devuelve en formato JSON o se transforma a CSV para descarga.
+   - Si la consulta inicial no retorna registros, se devuelve un mensaje informativo.
 
-6. **Manejo de Errores y Logging**
-   - Los errores de validación (por ejemplo, parámetros faltantes o extra) se devuelven con códigos HTTP adecuados (400, 404 o 500) y mensajes descriptivos.
-   - Un middleware global (como `ExceptionMiddleware` y `RequestResponseLoggingMiddleware`) captura excepciones y registra logs detallados de cada request/response.
-   - Se registra cada ejecución en la base de datos para auditoría y trazabilidad.
+6. **Manejo de Errores y Trazabilidad**
+   - Los errores de validación y ejecución se gestionan con códigos HTTP adecuados y mensajes descriptivos.
+   - Middlewares globales (por ejemplo, `ExceptionMiddleware` y `RequestResponseLoggingMiddleware`) capturan excepciones y registran logs detallados de cada request/response.
+   - Cada ejecución se registra en la base de datos (por ejemplo, en la entidad `ApiTrace`) para auditoría y trazabilidad.
 
-## Especificaciones
+## Implementación con Docker
 
-### Funcionalidades
+Construir la imagen:
+```bash
+docker build -t smartprocessorchestratorapi:latest .
+```
+Ejecutar la imagen:
+```bash
+docker run -d -p 9000:80 --name smartprocessorchestratorapi -e ASPNETCORE_ENVIRONMENT=Development smartprocessorchestratorapi:latest
+```
 
-1. **Ejecución Dinámica de Stored Procedures**
-   - Permite agregar nuevos stored procedures sin necesidad de modificar el código.
-   - Soporta procedimientos con diferentes parámetros y en múltiples bases de datos.
+## Documentación Swagger
 
-2. **Configuración Centralizada**
-   - La configuración se almacena en la base de datos (entidad `ServicioConfiguracion`), que define el SP, la cadena de conexión, el proveedor y los parámetros esperados.
-   - Facilita la administración y migración de servicios sin afectar la lógica de ejecución.
-
-3. **Validación de Parámetros**
-   - Se valida que el request contenga exactamente los parámetros esperados (según lo definido en `ServicioConfiguracion.Parametros`).
-   - Se rechazan solicitudes con parámetros extra o faltantes, devolviendo errores claros.
-
-4. **Ejecución en Dos Modos: JSON y Archivo**
-   - Dependiendo de un flag (`isFile`) en el request, el resultado se devuelve en formato JSON o se transforma a CSV para descarga.
-
-5. **Registro y Auditoría**
-   - Cada ejecución se registra en la base de datos (entidad `ServicioEjecucion`), con información de usuario, fecha, resultado y tiempo de ejecución.
-   - Los errores se registran con un identificador único para trazabilidad y auditoría.
-
-6. **Políticas de Reintento y Timeout**
-   - Se configuran reintentos y tiempos máximos de ejecución para mejorar la resiliencia ante fallos transitorios.
-
-### Casos de Uso
-
-- **Ejecución de Stored Procedure Dinámico:**  
-  El cliente envía el nombre del servicio y los parámetros, y el sistema ejecuta el SP configurado, devolviendo el resultado en JSON o como archivo CSV.
-
-- **Validación de Parámetros:**  
-  Si los parámetros enviados no coinciden con los definidos en la configuración, el sistema devuelve un error con la lista de parámetros esperados.
-
-- **Prueba de Conexión y Auditoría:**  
-  Se puede probar la conexión a la base de datos y se registra cada ejecución para auditoría.
-
-### Estructura de la Base de Datos
-
-1. **Servicio:**  
-   Almacena los servicios (nombre, descripción, estado, etc.).
-
-2. **ServicioConfiguracion:**  
-   Define los stored procedures, la cadena de conexión, el proveedor y los parámetros esperados (en formato JSON).
-
-3. **ServicioEjecucion:**  
-   Registra cada ejecución del SP, con detalles de usuario, fecha, resultado y tiempo de ejecución.
-
-4. **ServicioReintento:**  
-   Define la política de reintentos en caso de fallo.
-
-5. **ServicioReprocesamiento:**  
-   Registra intentos de reprocesamiento manual.
-
-6. **ServicioErrores:**  
-   Registra errores con un identificador único.
-
-7. **ServicioLogs:**  
-   Registra logs detallados de la ejecución de stored procedures.
-
-### Arquitectura del Proyecto
-
-- **Entities**
-- **DTOs y Validaciones**
-- **Repositories**
-- **Services**
-- **Controllers**
-- **Configuration**
-- **Middleware**
-
-## Lógica de Negocio
-
-1. **Ejecución con Reintentos:**  
-   Se reintenta la ejecución del SP según una política predefinida.
-
-2. **Timeout Dinámico:**  
-   Se configura un tiempo máximo para la ejecución de un SP, finalizando la ejecución si se excede.
-
-3. **Reprocesamiento Manual:**  
-   Los administradores pueden reejecutar manualmente un SP fallido.
-
-4. **Auditoría y Logging:**  
-   Cada ejecución se registra en la base de datos y se generan logs detallados mediante middlewares globales.
-
-## Documentación Automática con Swagger
-
-La aplicación genera documentación OpenAPI de forma dinámica basándose en los endpoints y esquemas definidos, facilitando la integración con clientes y el desarrollo frontend.
-
-## Comunicación
-
-1. **Cliente:**  
-   Envía solicitudes al API Gateway.
-
-2. **API Gateway:**  
-   Redirige las peticiones al SPOrchestratorAPI.
-
-3. **SPOrchestratorAPI:**
-   - Ejecuta los stored procedures según la configuración.
-   - Registra logs y auditoría de cada ejecución.
-   - Valida y transforma los resultados.
-
-4. **Administración:**  
-   Permite la revisión y reprocesamiento de ejecuciones fallidas.
-
-5. **Respuesta:**  
-   Devuelve resultados en formato JSON o como archivos (CSV), según lo solicitado.
-
-## Documentación Docker 
-
-1. **Contruir ISO**
-   docker build -t sporchestratorapi:latest .
-2. **Contruir Compose**
-   docker-compose build
-3. **Levantar Compose para los contenedores en modo detached**
-   docker-compose up -d
-4. **Configurar el Nginx**
-    Configurar Nginx como proxi reverso para redirigir la aplicación, entrando al contenedor de Nginx
-5. **Probar aplicación por ip fija o URL**
-   http://localhost:[PORT]/swagger
-
-## Docker Example
-
-1. **Comando docker**
-- docker run -d -p 9000:80 --name sporchestratorapi -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi
-
-2. **Descripción**
-- Corremos docker en el puerto 9000, modo developer para activar logs (cambiar para producción) y forzando la exposición dle puerto 80 del contenedor.
-
-3. **URL Ejemplo**
-- http://localhost:9000/swagger
+La documentación OpenAPI se genera dinámicamente, facilitando la integración con clientes y el desarrollo frontend.
 
 ## Conclusión
 
-**SPOrchestratorAPI** centraliza la ejecución de stored procedures mediante una configuración dinámica y flexible. Gracias a su arquitectura modular basada en el enfoque B y principios SOLID, se pueden agregar nuevos procedimientos sin modificar el código. La validación estricta de parámetros, la transformación de resultados y el manejo centralizado de errores y logs garantizan una solución robusta, escalable y fácil de mantener.
+Smart Process Orchestrator API centraliza y orquesta la ejecución de procesos (Stored Procedures, Vistas SQL y EndPoints) mediante una configuración dinámica y flexible. Su arquitectura modular permite:
 
----
-
+- Agregar nuevos procesos sin modificar el código.
+- Encadenar procesos con flujos "continue with".
+- Configurar ejecuciones programadas mediante expresiones CRON.
+- Registrar cada ejecución para auditoría y trazabilidad.

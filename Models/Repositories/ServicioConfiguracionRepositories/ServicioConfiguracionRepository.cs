@@ -28,7 +28,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
         _dbSet = _context.Set<ServicioConfiguracion>();
         _serviceExecutor = serviceExecutor ?? throw new ArgumentNullException(nameof(serviceExecutor));
     }
-
+    
+    /// <inheritdoc />
     public IObservable<ServicioConfiguracion> GetByIdAsync(int id)
     {
         return _serviceExecutor.ExecuteAsync(() =>
@@ -50,7 +51,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
             });
         });
     }
-
+    
+    /// <inheritdoc />
     public IObservable<ServicioConfiguracion> CreateAsync(ServicioConfiguracion config)
     {
         return _serviceExecutor.ExecuteAsync(() =>
@@ -66,7 +68,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
             });
         });
     }
-
+    
+    /// <inheritdoc />
     public IObservable<ServicioConfiguracion> UpdateAsync(ServicioConfiguracion config)
     {
         return _serviceExecutor.ExecuteAsync(() =>
@@ -95,6 +98,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
                 existing.MaxReintentos = config.MaxReintentos;
                 existing.TimeoutSegundos = config.TimeoutSegundos;
                 existing.Provider = config.Provider;
+                existing.Tipo = config.Tipo;
+                existing.EsProgramado = config.EsProgramado;
                 existing.UpdatedAt = DateTime.UtcNow;
                 existing.UpdatedBy = "System";
 
@@ -106,7 +111,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
             });
         });
     }
-
+    
+    /// <inheritdoc />
     public IObservable<ServicioConfiguracion> SoftDeleteAsync(int id)
     {
         return _serviceExecutor.ExecuteAsync(() =>
@@ -132,7 +138,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
             });
         });
     }
-
+    
+    /// <inheritdoc />
     public IObservable<ServicioConfiguracion> RestoreAsync(int id)
     {
         return _serviceExecutor.ExecuteAsync(() =>
@@ -158,7 +165,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
             });
         });
     }
-
+    
+    /// <inheritdoc />
     public IObservable<IList<ServicioConfiguracion>> GetAllAsync()
     {
         return _serviceExecutor.ExecuteAsync(() =>
@@ -176,7 +184,8 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
             });
         });
     }
-
+    
+    /// <inheritdoc />
     public IObservable<IList<ServicioConfiguracion>> GetByServicioIdAsync(int servicioId)
     {
         return _serviceExecutor.ExecuteAsync(() =>

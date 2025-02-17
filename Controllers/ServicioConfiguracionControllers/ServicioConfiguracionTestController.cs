@@ -15,14 +15,14 @@ namespace SPOrchestratorAPI.Controllers.ServicioConfiguracionControllers
     public class ServicioConfiguracionTestController : ControllerBase
     {
         private readonly IServicioConfiguracionConnectionTestService _testService;
-        private readonly IStoredProcedureService _spService;
+        private readonly IStoredProcedureTestService _spService;
 
         /// <summary>
         /// Constructor que recibe la dependencia del servicio de testeo de conexión.
         /// </summary>
         /// <param name="testService">Servicio para testear la conexión de la configuración.</param>
         /// <param name="spService"></param>
-        public ServicioConfiguracionTestController(IServicioConfiguracionConnectionTestService testService, IStoredProcedureService spService)
+        public ServicioConfiguracionTestController(IServicioConfiguracionConnectionTestService testService, IStoredProcedureTestService spService)
         {
             _testService = testService ?? throw new ArgumentNullException(nameof(testService));
             _spService = spService ?? throw new ArgumentNullException(nameof(spService));

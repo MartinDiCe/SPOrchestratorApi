@@ -26,7 +26,7 @@ public static class SwaggerConfig
             {
                 Title = "SPOrchestratorAPI",
                 Version = "0.0.0.1",
-                Description = "API para la ejecución de Stored Procedures dinámicos",
+                Description = "API para la ejecución de Stored Procedures, Vistas SQL y Endpoints de manera dinámica",
                 Contact = new OpenApiContact
                 {
                     Name = "Mdice",

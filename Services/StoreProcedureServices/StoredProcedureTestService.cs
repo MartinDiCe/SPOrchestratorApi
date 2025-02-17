@@ -4,56 +4,47 @@ using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
-using SPOrchestratorAPI.Services.ServicioServices;
 
 namespace SPOrchestratorAPI.Services.StoreProcedureServices
 {
     /// <summary>
-    /// Servicio para la ejecución de procedimientos almacenados utilizando la configuración 
-    /// definida en <see cref="ServicioConfiguracion"/>. Aplica un enfoque reactivo y principios SOLID,
-    /// delegando la ejecución según el proveedor a través de una factoría de executors.
+    /// Servicio para la ejecución de stored procedures que no retornan datos, utilizando la configuración
+    /// definida en <see cref="ServicioConfiguracion"/>. Aplica un enfoque reactivo y delega la ejecución al executor
+    /// correspondiente según el proveedor.
     /// </summary>
-    public class StoredProcedureService(
+    public class StoredProcedureTestService(
         IServicioConfiguracionService configService,
-        ILoggerService<StoredProcedureService> logger,
+        ILoggerService<StoredProcedureTestService> logger,
         IServiceExecutor serviceExecutor,
-        IServicioService servicioService,
         IStoredProcedureExecutorFactory executorFactory)
-        : IStoredProcedureService
+        : IStoredProcedureTestService
     {
-        private readonly ILoggerService<StoredProcedureService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly ILoggerService<StoredProcedureTestService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         private readonly IServiceExecutor _serviceExecutor = serviceExecutor ?? throw new ArgumentNullException(nameof(serviceExecutor));
         private readonly IServicioConfiguracionService _configService = configService ?? throw new ArgumentNullException(nameof(configService));
-        private readonly IServicioService _servicioService = servicioService ?? throw new ArgumentNullException(nameof(servicioService));
         private readonly IStoredProcedureExecutorFactory _executorFactory = executorFactory ?? throw new ArgumentNullException(nameof(executorFactory));
-        
+
         /// <inheritdoc />
-        public IObservable<object> EjecutarSpConRespuestaPorNombreAsync(string serviceName, IDictionary<string, object>? parameters = null)
+        public IObservable<int> EjecutarSpAsync(int idConfiguracion, IDictionary<string, object>? parameters = null)
         {
             return _serviceExecutor.ExecuteAsync(() =>
             {
                 return Observable.FromAsync(async () =>
                 {
-                    _logger.LogInfo($"Iniciando ejecución del stored procedure para el servicio '{serviceName}'.");
+                    _logger.LogInfo($"Iniciando ejecución del SP para la configuración con ID {idConfiguracion}.");
 
-                    // Obtener el servicio por su nombre
-                    var servicio = await _servicioService.GetByNameAsync(serviceName).FirstAsync();
-                    if (servicio == null)
+                    var config = await _configService.GetByIdAsync(idConfiguracion).FirstAsync();
+                    if (config == null)
                     {
-                        throw new ResourceNotFoundException($"No se encontró un servicio con el nombre '{serviceName}'.");
+                        throw new ResourceNotFoundException($"No se encontró configuración con ID {idConfiguracion}.");
                     }
-                    var configs = await _configService.GetByServicioIdAsync(servicio.Id).FirstAsync();
-                    if (configs == null || configs.Count == 0)
-                    {
-                        throw new ResourceNotFoundException($"No se encontró configuración para el servicio '{serviceName}' (ID: {servicio.Id}).");
-                    }
-                    var config = configs[0];
                     if (string.IsNullOrWhiteSpace(config.NombreProcedimiento))
                     {
                         throw new InvalidOperationException("El nombre del stored procedure no está definido en la configuración.");
                     }
-                    _logger.LogInfo($"Configuración obtenida para el servicio '{serviceName}'. Proveedor: {config.Provider}, SP: {config.NombreProcedimiento}");
-                    
+                    _logger.LogInfo($"Configuración obtenida. Proveedor: {config.Provider}, SP: {config.NombreProcedimiento}");
+
+                    // Validar parámetros según la configuración
                     if (!string.IsNullOrWhiteSpace(config.Parametros))
                     {
                         Dictionary<string, string> expectedParams;
@@ -99,10 +90,10 @@ namespace SPOrchestratorAPI.Services.StoreProcedureServices
                     }
 
                     var executor = _executorFactory.GetExecutor(config.Provider);
-                    object resultData = await executor.ExecuteReaderAsync(config, parameters);
+                    int rowsAffected = await executor.ExecuteNonQueryAsync(config, parameters);
 
-                    _logger.LogInfo("El stored procedure se ejecutó correctamente y se obtuvo la respuesta.");
-                    return resultData;
+                    _logger.LogInfo($"Ejecución del SP '{config.NombreProcedimiento}' completada. Filas afectadas: {rowsAffected}.");
+                    return rowsAffected;
                 });
             });
         }
