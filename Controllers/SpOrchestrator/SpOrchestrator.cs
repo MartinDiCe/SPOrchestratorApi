@@ -69,7 +69,7 @@ namespace SPOrchestratorAPI.Controllers.SpOrchestrator
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al ejecutar el stored procedure.", detail = ex.Message });
+                return StatusCode(500, new { message = "Error en la ejecución del orquestador de procesos.", detail = ex.Message });
             }
         }
     }

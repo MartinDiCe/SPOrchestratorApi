@@ -91,7 +91,10 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                                     MaxReintentos = dto.MaxReintentos,
                                     TimeoutSegundos = dto.TimeoutSegundos,
                                     Tipo = dto.Tipo,
+                                    Provider = dto.Provider,
                                     EsProgramado = dto.EsProgramado,
+                                    ContinuarCon = dto.ContinuarCon,
+                                    GuardarRegistros = dto.GuardarRegistros,
                                     CreatedAt = DateTime.UtcNow,
                                     CreatedBy = "System",
                                     Servicio = servicioExistente
@@ -129,7 +132,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     _logger.LogWarning("El valor de Tipo recibido no es válido. Se asigna el valor por defecto 'StoredProcedure'.");
                     dto.Tipo = TipoConfiguracion.StoredProcedure;
                 }
-                
+
                 string? parametrosJson;
                 try
                 {
@@ -152,6 +155,8 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     Provider = dto.Provider,
                     EsProgramado = dto.EsProgramado,
                     Tipo = dto.Tipo,
+                    ContinuarCon = dto.ContinuarCon,
+                    GuardarRegistros = dto.GuardarRegistros,
                     Servicio = new Servicio { Id = dto.ServicioId }
                 };
 
