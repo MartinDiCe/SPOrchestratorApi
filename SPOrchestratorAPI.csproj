@@ -30,4 +30,8 @@
       <Content Include=".github\workflows\dotnet.yml" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Migrations\" />
+    </ItemGroup>
+
 </Project>

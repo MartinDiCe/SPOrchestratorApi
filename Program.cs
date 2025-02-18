@@ -7,7 +7,9 @@ using SPOrchestratorAPI.Examples;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Middleware;
+using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories.ApiTraceRepositories;
+using SPOrchestratorAPI.Models.Repositories.ContinueWithRepositories;
 using SPOrchestratorAPI.Models.Repositories.ParameterRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioConfiguracionRepositories;
 using SPOrchestratorAPI.Models.Repositories.ServicioProgramacionRepositories;
@@ -15,6 +17,7 @@ using SPOrchestratorAPI.Models.Repositories.ServicioRepositories;
 using SPOrchestratorAPI.Services.ApiTraceServices;
 using SPOrchestratorAPI.Services.AuditServices;
 using SPOrchestratorAPI.Services.ConnectionTestingServices;
+using SPOrchestratorAPI.Services.ContinueWithServices;
 using SPOrchestratorAPI.Services.EndpointServices;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ParameterServices;
@@ -68,10 +71,12 @@ builder.Services.AddScoped<IServicioConfiguracionRepository, ServicioConfiguraci
 builder.Services.AddScoped<IServicioProgramacionRepository, ServicioProgramacionRepository>();
 builder.Services.AddScoped<IParameterRepository, ParameterRepository>();
 builder.Services.AddScoped<IApiTraceRepository, ApiTraceRepository>();
+builder.Services.AddScoped<IServicioContinueWithRepository, ServicioContinueWithRepository>();
 
 builder.Services.AddScoped<IServicioService, ServicioService>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
 builder.Services.AddScoped<IServicioProgramacionService, ServicioProgramacionService>();
+builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<IConnectionTesterService, ConnectionTesterService>();
 builder.Services.AddScoped<IServicioConfiguracionConnectionTestService, ServicioConfiguracionConnectionTestService>();
 builder.Services.AddScoped<IStoredProcedureExecutorFactory, StoredProcedureExecutorFactory>();
@@ -81,6 +86,7 @@ builder.Services.AddScoped<ISpOrchestratorService, SpOrchestratorService>();
 builder.Services.AddScoped<IVistaSqlService, VistaSqlService>();
 builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
+builder.Services.AddScoped<IServicioContinueWithService, ServicioContinueWithService>();
 
 builder.Services.AddHttpClient<IEndpointService, EndpointService>();
 
