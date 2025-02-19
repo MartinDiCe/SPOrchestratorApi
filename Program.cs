@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Configuration;
@@ -7,7 +8,6 @@ using SPOrchestratorAPI.Examples;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Middleware;
-using SPOrchestratorAPI.Models.Entities;
 using SPOrchestratorAPI.Models.Repositories.ApiTraceRepositories;
 using SPOrchestratorAPI.Models.Repositories.ContinueWithRepositories;
 using SPOrchestratorAPI.Models.Repositories.ParameterRepositories;
@@ -31,6 +31,23 @@ using SPOrchestratorAPI.Traces;
 using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 0) Configurar Hangfire
+builder.Services.AddHangfire(config =>
+{
+    config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+
+// 2) Agregar el servidor de Hangfire
+builder.Services.AddHangfireServer(options =>
+{
+    // Número de hilos/Workers
+    options.WorkerCount = 1;
+});
 
 // ---------------------------------------------------------
 // 1) Configurar servicios básicos (Controllers, Swagger, etc.)
@@ -76,6 +93,8 @@ builder.Services.AddScoped<IServicioContinueWithRepository, ServicioContinueWith
 builder.Services.AddScoped<IServicioService, ServicioService>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
 builder.Services.AddScoped<IServicioProgramacionService, ServicioProgramacionService>();
+builder.Services.AddScoped<HangfireJobsInitializer>();
+builder.Services.AddScoped<IScheduledOrchestratorService, ScheduledOrchestratorService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<IConnectionTesterService, ConnectionTesterService>();
 builder.Services.AddScoped<IServicioConfiguracionConnectionTestService, ServicioConfiguracionConnectionTestService>();
@@ -112,13 +131,16 @@ else
 
 var app = builder.Build();
 
+// 6) Panel de Control de Hangfire)
+app.UseHangfireDashboard("/hangfire");
+
 // ---------------------------------------------------------
-// 6) Inicializar la base de datos (semillas, migraciones, etc.)
+// 7) Inicializar la base de datos (semillas, migraciones, etc.)
 // ---------------------------------------------------------
 DatabaseInitializer.Initialize(app.Services);
 
 // ---------------------------------------------------------
-// 7) Pipeline de Middlewares
+// 8) Pipeline de Middlewares
 // ---------------------------------------------------------
 
 // En entornos de desarrollo, usar Swagger y el middleware de logging de request/response.
@@ -129,13 +151,7 @@ if (app.Environment.IsDevelopment())
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
 
-// Aquí decides si en producción quieres exponer Swagger o no
-// app.UseSwaggerConfiguration(); // Si deseas exponer Swagger en producción, activa esta línea
-
-
-// **IMPORTANTE:** Para capturar correctamente la respuesta (incluso en errores)
-// es recomendable que el middleware de trazas (ApiTraceMiddleware) envuelva todo el pipeline,
-// por lo que lo registramos **antes** de ExceptionMiddleware.
+// Registramos ExceptionMiddleware.
 app.UseMiddleware<ApiTraceMiddleware>();
 
 // Middleware para captura global de excepciones.

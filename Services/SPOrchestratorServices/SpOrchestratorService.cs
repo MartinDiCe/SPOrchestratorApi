@@ -47,7 +47,7 @@ namespace SPOrchestratorAPI.Services.SPOrchestratorServices
                     throw new InvalidOperationException("El nombre del stored procedure, vista o endpoint no está definido en la configuración.");
 
                 object resultData = null;
-                // Seleccionar la ejecución según el tipo configurado
+                
                 if (config.Tipo == TipoConfiguracion.StoredProcedure)
                 {
                     resultData = await _storedProcedureService.EjecutarSpConRespuestaPorNombreAsync(serviceName, parameters).FirstAsync();

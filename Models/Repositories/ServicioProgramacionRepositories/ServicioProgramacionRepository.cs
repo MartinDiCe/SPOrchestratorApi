@@ -181,20 +181,28 @@ namespace SPOrchestratorAPI.Models.Repositories.ServicioProgramacionRepositories
         }
 
         /// <inheritdoc />
-        public IObservable<IList<ServicioProgramacion>> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId)
+        public IObservable<ServicioProgramacion?> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId)
         {
             return _serviceExecutor.ExecuteAsync(() =>
             {
                 return Observable.FromAsync(async () =>
                 {
-                    _logger.LogInfo($"Consultando programaciones para la configuración con ID {servicioConfiguracionId}...");
-                    var programaciones = await _dbSet
+                    _logger.LogInfo($"Consultando (1:1) programación para la configuración con ID {servicioConfiguracionId}...");
+                    var programacion = await _dbSet
                         .Where(p => p.ServicioConfiguracionId == servicioConfiguracionId && !p.Deleted)
                         .Include(p => p.ServicioConfiguracion)
-                        .ToListAsync();
+                        .FirstOrDefaultAsync(); // Sólo 1 o null
 
-                    _logger.LogInfo($"Se obtuvieron {programaciones.Count} programaciones para la configuración con ID {servicioConfiguracionId}.");
-                    return programaciones;
+                    if (programacion != null)
+                    {
+                        _logger.LogInfo($"Se encontró la programación con ID {programacion.Id} para configuración {servicioConfiguracionId}.");
+                    }
+                    else
+                    {
+                        _logger.LogInfo($"No se encontró ninguna programación para configuración {servicioConfiguracionId} (1:1).");
+                    }
+
+                    return programacion;
                 });
             });
         }
