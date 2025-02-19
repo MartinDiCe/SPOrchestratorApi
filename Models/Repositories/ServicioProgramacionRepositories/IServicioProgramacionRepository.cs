@@ -54,6 +54,7 @@ namespace SPOrchestratorAPI.Models.Repositories.ServicioProgramacionRepositories
         /// </summary>
         /// <param name="servicioConfiguracionId">ID de la configuración de servicio.</param>
         /// <returns>Una secuencia observable con la lista de programaciones asociadas.</returns>
-        IObservable<IList<ServicioProgramacion>> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId);
+        IObservable<ServicioProgramacion?> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId);
+
     }
 }

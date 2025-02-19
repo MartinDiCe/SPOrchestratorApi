@@ -92,7 +92,7 @@ namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
         }
 
         /// <inheritdoc />
-        public IObservable<IList<ServicioProgramacion>> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId)
+        public IObservable<ServicioProgramacion?> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId)
         {
             return _repository.GetByServicioConfiguracionIdAsync(servicioConfiguracionId);
         }

@@ -35,7 +35,7 @@ namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
         /// <summary>
         /// Obtiene las programaciones asociadas a una configuración de servicio específica.
         /// </summary>
-        IObservable<IList<ServicioProgramacion>> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId);
+        IObservable<ServicioProgramacion?> GetByServicioConfiguracionIdAsync(int servicioConfiguracionId);
 
         /// <summary>
         /// Aplica un soft-delete a una programación.
