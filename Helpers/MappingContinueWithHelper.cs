@@ -28,7 +28,8 @@ namespace SPOrchestratorAPI.Helpers
             {
                 var parts = pair.Trim().Split('=');
                 if (parts.Length != 2)
-                    throw new FormatException($"El par '{pair}' no está en el formato correcto. Se esperaba 'clave=valor'.");
+                    throw new FormatException(
+                        $"El par '{pair}' no está en el formato correcto. Se esperaba 'clave=valor'.");
 
                 string clave = parts[0].Trim();
                 string valor = parts[1].Trim();
@@ -37,10 +38,12 @@ namespace SPOrchestratorAPI.Helpers
 
                 mapping[clave] = valor;
             }
+
             return mapping;
         }
 
-        public static IDictionary<string, string> ValidateAndParseMapping(string mappingString, IList<string>? parametrosEsperados = null)
+        public static IDictionary<string, string> ValidateAndParseMapping(string mappingString,
+            IList<string>? parametrosEsperados = null)
         {
             var mapping = ParseMapping(mappingString);
             if (parametrosEsperados != null && parametrosEsperados.Any())
@@ -51,10 +54,12 @@ namespace SPOrchestratorAPI.Helpers
                         continue;
                     if (!parametrosEsperados.Contains(kvp.Value, StringComparer.OrdinalIgnoreCase))
                     {
-                        throw new FormatException($"El parámetro de destino '{kvp.Value}' no se encuentra entre los parámetros esperados.");
+                        throw new FormatException(
+                            $"El parámetro de destino '{kvp.Value}' no se encuentra entre los parámetros esperados.");
                     }
                 }
             }
+
             return mapping;
         }
 
@@ -81,10 +86,13 @@ namespace SPOrchestratorAPI.Helpers
         /// <exception cref="FormatException">
         /// Se lanza si no se encuentra la propiedad esperada en el resultado.
         /// </exception>
-        public static IDictionary<string, object> TransformarResultado(object result, string mappingString, string serviceName = "el servicio")
+        public static IDictionary<string, object> TransformarResultado(object result, string mappingString,
+            string serviceName = "el servicio")
         {
             var mapping = ParseMapping(mappingString);
             var output = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            var extractor = new JsonExtractor(); // Usamos nuestro extractor de JSON
+
             foreach (var kvp in mapping)
             {
                 string sourceKey = kvp.Key;
@@ -96,31 +104,50 @@ namespace SPOrchestratorAPI.Helpers
                 }
                 else
                 {
-                    if (result is IDictionary<string, object> dict)
+                    // Si el sourceKey parece ser una ruta JSONPath (por ejemplo, comienza con '$' o contiene [*])
+                    if (sourceKey.StartsWith("$") || sourceKey.Contains("["))
                     {
-                        if (!dict.TryGetValue(sourceKey, out value))
+                        // Se espera que el 'result' sea un JSON en string
+                        string json = result is string
+                            ? (string)result
+                            : System.Text.Json.JsonSerializer.Serialize(result);
+                        value = extractor.ExtraerValor(json, sourceKey);
+                        if (value == null)
                         {
                             throw new FormatException(
-                                $"No se encontró la propiedad esperada '{targetParam}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
+                                $"No se encontró la ruta JSONPath '{sourceKey}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
                         }
                     }
                     else
                     {
-                        PropertyInfo? prop = result.GetType().GetProperty(sourceKey, 
-                            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                        if (prop != null)
+                        if (result is IDictionary<string, object> dict)
                         {
-                            value = prop.GetValue(result);
+                            if (!dict.TryGetValue(sourceKey, out value))
+                            {
+                                throw new FormatException(
+                                    $"No se encontró la propiedad esperada '{targetParam}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
+                            }
                         }
                         else
                         {
-                            throw new FormatException(
-                                $"No se encontró la propiedad esperada '{targetParam}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
+                            PropertyInfo? prop = result.GetType().GetProperty(sourceKey,
+                                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                            if (prop != null)
+                            {
+                                value = prop.GetValue(result);
+                            }
+                            else
+                            {
+                                throw new FormatException(
+                                    $"No se encontró la propiedad esperada '{targetParam}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
+                            }
                         }
                     }
                 }
+
                 output[targetParam] = value!;
             }
+
             return output;
         }
     }
