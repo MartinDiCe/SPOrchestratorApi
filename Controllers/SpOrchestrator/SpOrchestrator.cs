@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.DTOs.StoreProcedureDtos;
-using SPOrchestratorAPI.Services.SPOrchestratorServices;
+using SPOrchestratorAPI.Services.ChainOrchestratorServices;
 
 namespace SPOrchestratorAPI.Controllers.SpOrchestrator
 {
@@ -17,9 +17,9 @@ namespace SPOrchestratorAPI.Controllers.SpOrchestrator
     [ApiExplorerSettings(GroupName = "Public")]
     [ApiController]
     [Route("api/[controller]")]
-    public class SpOrchestrator(ISpOrchestratorService spService) : ControllerBase
+    public class SpOrchestrator(IChainOrchestratorService spService) : ControllerBase
     {
-        private readonly ISpOrchestratorService _spService =
+        private readonly IChainOrchestratorService _spService =
             spService ?? throw new ArgumentNullException(nameof(spService));
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace SPOrchestratorAPI.Controllers.SpOrchestrator
             try
             {
                 var result = await _spService
-                    .EjecutarPorNombreAsync(request.ServiceName, request.Parameters)
+                    .EjecutarConContinuacionAsync(request.ServiceName, request.Parameters)
                     .FirstAsync();
 
                 if (request.IsFile)
