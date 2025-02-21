@@ -28,6 +28,11 @@ namespace SPOrchestratorAPI.Models.Entities
         /// </summary>
         [Required]
         public int ServicioConfiguracionId { get; set; }
+        
+        /// <summary>
+        /// Identificador del servicio padre que hizo ejecutar.
+        /// </summary>
+        public int? ServicioDesencadenadorId { get; set; }
 
         /// <summary>
         /// Fecha y hora en que se realizó la ejecución.

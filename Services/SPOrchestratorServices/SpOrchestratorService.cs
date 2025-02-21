@@ -73,9 +73,10 @@ namespace SPOrchestratorAPI.Services.SPOrchestratorServices
                     {
                         ServicioId = servicio.Id,
                         ServicioConfiguracionId = config.Id,
+                        ServicioDesencadenadorId = null,
                         FechaEjecucion = DateTime.UtcNow,
                         Duracion = executionTime,
-                        Estado = true, // o false según corresponda
+                        Estado = true, 
                         Parametros = JsonSerializer.Serialize(parameters),
                         Resultado = JsonSerializer.Serialize(resultData)
                     });
