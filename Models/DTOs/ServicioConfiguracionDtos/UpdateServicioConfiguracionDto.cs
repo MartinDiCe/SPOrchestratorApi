@@ -75,4 +75,9 @@ public class UpdateServicioConfiguracionDto
     /// </summary>
     public bool ContinuarCon { get; set; } = false;
     
+    /// <summary>
+    /// Configuracion usada solo si el provider es un endpoint.
+    /// </summary>
+    public string JsonConfig { get; set; } = string.Empty;
+    
 }
