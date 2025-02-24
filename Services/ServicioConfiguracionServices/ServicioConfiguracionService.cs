@@ -39,23 +39,25 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                 return _repository.GetByIdAsync(id);
             });
         }
-        
+
         /// <inheritdoc />
         public IObservable<ServicioConfiguracion> CreateAsync(CreateServicioConfiguracionDto dto)
         {
             return _executor.ExecuteAsync(() =>
             {
                 _logger.LogInfo("Creando nueva configuración de servicio...");
-                        
+
                 if (dto.ServicioId <= 0)
                 {
                     throw new ArgumentException("El ServicioId debe ser mayor a 0.", nameof(dto.ServicioId));
                 }
+
                 if (string.IsNullOrWhiteSpace(dto.NombreProcedimiento))
                 {
-                    throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
+                    throw new ArgumentException("El NombreProcedimiento es obligatorio.",
+                        nameof(dto.NombreProcedimiento));
                 }
-                
+
                 string? parametrosJson;
                 try
                 {
@@ -66,6 +68,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     throw new ArgumentException($"Error en el campo Parametros: {ex.Message}");
                 }
 
+                // Validamos que el servicio existe
                 return _servicioService.GetByIdAsync(dto.ServicioId)
                     .SelectMany(servicioExistente =>
                     {
@@ -73,15 +76,29 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                         {
                             throw new ArgumentException($"El servicio con ID {dto.ServicioId} no existe.");
                         }
-                        
+
                         return _repository.GetByServicioIdAsync(dto.ServicioId)
                             .SelectMany(existingConfigs =>
                             {
                                 if (existingConfigs != null && existingConfigs.Any())
                                 {
-                                    throw new InvalidOperationException($"Ya existe una configuración para el servicio con ID {dto.ServicioId}.");
+                                    throw new InvalidOperationException(
+                                        $"Ya existe una configuración para el servicio con ID {dto.ServicioId}.");
                                 }
-                                
+
+                                if (dto.Tipo == TipoConfiguracion.EndPoint)
+                                {
+                                    try
+                                    {
+                                        var configValues = EndpointConfigHelper.ParseAndValidateConfig(dto.JsonConfig);
+                                    }
+                                    catch (FormatException ex)
+                                    {
+                                        throw new ArgumentException($"Error en el campo JsonConfig: {ex.Message}",
+                                            nameof(dto.JsonConfig));
+                                    }
+                                }
+
                                 var config = new ServicioConfiguracion
                                 {
                                     ServicioId = dto.ServicioId,
@@ -95,6 +112,7 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                                     EsProgramado = dto.EsProgramado,
                                     ContinuarCon = dto.ContinuarCon,
                                     GuardarRegistros = dto.GuardarRegistros,
+                                    JsonConfig = dto.JsonConfig,
                                     CreatedAt = DateTime.UtcNow,
                                     CreatedBy = "System",
                                     Servicio = servicioExistente
@@ -104,13 +122,14 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                                     .CreateAsync(config)
                                     .Do(created =>
                                     {
-                                        _logger.LogInfo($"Configuración {created.Id} creada para el servicio {created.ServicioId}.");
+                                        _logger.LogInfo(
+                                            $"Configuración {created.Id} creada para el servicio {created.ServicioId}.");
                                     });
                             });
                     });
             });
         }
-        
+
         /// <inheritdoc />
         public IObservable<ServicioConfiguracion> UpdateAsync(UpdateServicioConfiguracionDto dto)
         {
@@ -122,14 +141,17 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                 {
                     throw new ArgumentException("El ID debe ser mayor a 0.", nameof(dto.Id));
                 }
+
                 if (string.IsNullOrWhiteSpace(dto.NombreProcedimiento))
                 {
-                    throw new ArgumentException("El NombreProcedimiento es obligatorio.", nameof(dto.NombreProcedimiento));
+                    throw new ArgumentException("El NombreProcedimiento es obligatorio.",
+                        nameof(dto.NombreProcedimiento));
                 }
-                
+
                 if (!Enum.IsDefined(typeof(TipoConfiguracion), dto.Tipo))
                 {
-                    _logger.LogWarning("El valor de Tipo recibido no es válido. Se asigna el valor por defecto 'StoredProcedure'.");
+                    _logger.LogWarning(
+                        "El valor de Tipo recibido no es válido. Se asigna el valor por defecto 'StoredProcedure'.");
                     dto.Tipo = TipoConfiguracion.StoredProcedure;
                 }
 
@@ -142,14 +164,28 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                 {
                     throw new ArgumentException($"Error en el campo Parametros: {ex.Message}");
                 }
-                
+
+                if (dto.Tipo == TipoConfiguracion.EndPoint)
+                {
+                    try
+                    {
+                        var configValues = EndpointConfigHelper.ParseAndValidateConfig(dto.JsonConfig);
+                        
+                    }
+                    catch (FormatException ex)
+                    {
+                        throw new ArgumentException($"Error en el campo JsonConfig: {ex.Message}",
+                            nameof(dto.JsonConfig));
+                    }
+                }
+
                 var configToUpdate = new ServicioConfiguracion
                 {
                     Id = dto.Id,
                     ServicioId = dto.ServicioId,
                     NombreProcedimiento = dto.NombreProcedimiento,
                     ConexionBaseDatos = dto.ConexionBaseDatos,
-                    Parametros = parametrosJson,  
+                    Parametros = parametrosJson,
                     MaxReintentos = dto.MaxReintentos,
                     TimeoutSegundos = dto.TimeoutSegundos,
                     Provider = dto.Provider,
@@ -157,19 +193,21 @@ namespace SPOrchestratorAPI.Services.ServicioConfiguracionServices
                     Tipo = dto.Tipo,
                     ContinuarCon = dto.ContinuarCon,
                     GuardarRegistros = dto.GuardarRegistros,
+                    JsonConfig = dto.JsonConfig,
                     Servicio = new Servicio { Id = dto.ServicioId }
                 };
 
                 return _repository
                     .UpdateAsync(configToUpdate)
-                    
                     .Do(updated =>
                     {
-                        _logger.LogInfo($"Configuración {updated.Id} actualizada correctamente para el servicio {updated.ServicioId}.");
+                        _logger.LogInfo(
+                            $"Configuración {updated.Id} actualizada correctamente para el servicio {updated.ServicioId}.");
                     });
             });
         }
-        
+
+
         /// <inheritdoc />
         public IObservable<ServicioConfiguracion> SoftDeleteAsync(int id)
         {

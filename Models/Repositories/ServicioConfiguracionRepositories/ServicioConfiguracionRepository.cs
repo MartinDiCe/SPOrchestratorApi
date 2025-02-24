@@ -101,6 +101,7 @@ public class ServicioConfiguracionRepository : IServicioConfiguracionRepository
                 existing.Tipo = config.Tipo;
                 existing.EsProgramado = config.EsProgramado;
                 existing.ContinuarCon = config.ContinuarCon;
+                existing.JsonConfig = config.JsonConfig;
                 existing.GuardarRegistros = config.GuardarRegistros;
                 existing.UpdatedAt = DateTime.UtcNow;
                 existing.UpdatedBy = "System";

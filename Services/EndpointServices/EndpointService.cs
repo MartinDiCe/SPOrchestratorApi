@@ -11,8 +11,6 @@ namespace SPOrchestratorAPI.Services.EndpointServices
 {
     /// <summary>
     /// Servicio para la ejecución de llamadas a endpoints utilizando HttpClient.
-    /// Este servicio sigue el mismo enfoque reactivo y patrón que VistaSqlService, obteniendo la configuración
-    /// a partir del nombre del servicio y usando el executor para la ejecución centralizada.
     /// </summary>
     public class EndpointService(
         ILoggerService<EndpointService> logger,
@@ -37,12 +35,10 @@ namespace SPOrchestratorAPI.Services.EndpointServices
                 {
                     _logger.LogInfo($"Iniciando ejecución de endpoint para el servicio '{serviceName}'.");
 
-                    // Obtener el servicio por su nombre
                     var servicio = await _servicioService.GetByNameAsync(serviceName).FirstAsync();
                     if (servicio == null)
                         throw new ResourceNotFoundException($"No se encontró un servicio con el nombre '{serviceName}'.");
 
-                    // Obtener la configuración asociada al servicio
                     var configs = await _configService.GetByServicioIdAsync(servicio.Id).FirstAsync();
                     if (configs == null || configs.Count == 0)
                         throw new ResourceNotFoundException($"No se encontró configuración para el servicio '{serviceName}' (ID: {servicio.Id}).");
@@ -53,10 +49,9 @@ namespace SPOrchestratorAPI.Services.EndpointServices
 
                     _logger.LogInfo($"Configuración obtenida para el servicio '{serviceName}'. Endpoint: {config.NombreProcedimiento}");
 
-                    // Se usa el valor almacenado en la configuración como URL del endpoint
                     string endpointUrl = config.NombreProcedimiento.Trim();
 
-                    if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out var uriResult))
+                    if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out _))
                     {
                         if (_httpClient.BaseAddress != null)
                         {
@@ -70,16 +65,74 @@ namespace SPOrchestratorAPI.Services.EndpointServices
 
                     _logger.LogInfo($"URL final del endpoint: {endpointUrl}");
 
-                    // Convertir parámetros a tipos nativos utilizando el helper ParameterConverter
+                    Dictionary<string, string> endpointConfig = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    if (!string.IsNullOrWhiteSpace(config.JsonConfig))
+                    {
+                        try
+                        {
+                            endpointConfig = EndpointConfigHelper.ParseAndValidateConfig(config.JsonConfig)
+                                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+                        }
+                        catch (FormatException ex)
+                        {
+                            throw new InvalidOperationException("Error en la configuración JSON del endpoint: " + ex.Message);
+                        }
+                    }
+
+                    bool requiereApiKey = false;
+                    if (endpointConfig.TryGetValue("RequiereApiKey", out var requiereApiKeyValue))
+                    {
+                        requiereApiKey = bool.TryParse(requiereApiKeyValue, out var r) && r;
+                    }
+                    string apiKey = "";
+                    if (requiereApiKey)
+                    {
+                        if (!endpointConfig.TryGetValue("ApiKey", out apiKey!) || string.IsNullOrWhiteSpace(apiKey))
+                        {
+                            throw new InvalidOperationException("El endpoint requiere ApiKey, pero no se ha configurado correctamente en JsonConfig.");
+                        }
+                    }
+                    
+                    string tipoRequest = "POST";
+                    if (endpointConfig.TryGetValue("TipoRequest", out var tipoRequestValue))
+                    {
+                        tipoRequest = tipoRequestValue.ToUpperInvariant();
+                    }
+                    _logger.LogInfo($"Tipo de request configurado: {tipoRequest}");
+
                     var convertedParams = ParameterConverter.ConvertParameters(parameters);
                     _logger.LogInfo($"Se procesaron {convertedParams.Count} parámetros para la llamada al endpoint.");
 
-                    string jsonContent = JsonSerializer.Serialize(convertedParams);
-                    var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    var request = new HttpRequestMessage(new HttpMethod(tipoRequest), endpointUrl);
+                    
+                    if (requiereApiKey)
+                    {
+                        request.Headers.Add("ApiKey", apiKey);
+                    }
 
-                    _logger.LogInfo($"Llamando al endpoint: {endpointUrl} con parámetros: {jsonContent}");
+                    if (tipoRequest == "GET")
+                    {
+                        var queryString = string.Join("&", convertedParams.Select(kvp =>
+                            $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value.ToString()!)}"));
+                        var separator = endpointUrl.Contains("?") ? "&" : "?";
+                        request.RequestUri = new Uri(endpointUrl + separator + queryString);
+                    }
+                    else if (tipoRequest == "DELETE")
+                    {
+                        string jsonContent = JsonSerializer.Serialize(convertedParams);
+                        request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                        _logger.LogInfo($"Cuerpo de la solicitud: {jsonContent}");
+                    }
+                    else
+                    {
+                        string jsonContent = JsonSerializer.Serialize(convertedParams);
+                        request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                        _logger.LogInfo($"Cuerpo de la solicitud: {jsonContent}");
+                    }
 
-                    var response = await _httpClient.PostAsync(endpointUrl, content);
+                    _logger.LogInfo($"Llamando al endpoint: {request.RequestUri}");
+
+                    var response = await _httpClient.SendAsync(request);
                     response.EnsureSuccessStatusCode();
 
                     string responseBody = await response.Content.ReadAsStringAsync();
