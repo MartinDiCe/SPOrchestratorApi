@@ -20,6 +20,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
     public class ChainOrchestratorService(
         ISpOrchestratorService spOrchestratorService,
         IServicioService servicioService,
+        IContinuidadHelper continuidadHelper,
         IServicioConfiguracionService configService,
         IServicioContinueWithService continueWithService,
         ILoggerService<ChainOrchestratorService> logger,
@@ -27,7 +28,9 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
         IAuditoriaService auditoriaService,
         IServiceScopeFactory scopeFactory)
         : IChainOrchestratorService
-    {
+    {   
+        private readonly IContinuidadHelper _continuidadHelper =
+            continuidadHelper ?? throw new ArgumentNullException(nameof(continuidadHelper));
         private readonly ISpOrchestratorService _spOrchestratorService =
             spOrchestratorService ?? throw new ArgumentNullException(nameof(spOrchestratorService));
 
@@ -62,25 +65,43 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                 return _spOrchestratorService.EjecutarPorNombreAsync(serviceName, parameters)
                     .SelectMany(result =>
                     {
-                        if (result is IEnumerable<object> resultList)
-                        {
-                            _logger.LogInfo(
-                                $"El servicio '{serviceName}' devolvió una colección con {resultList.Count()} elementos. Aplicando fan‑out.");
-                            return resultList.ToObservable()
-                                .SelectMany(item => ProcessContinuationAsync(serviceName, item));
-                        }
-                        else
-                        {
-                            _logger.LogInfo(
-                                $"El servicio '{serviceName}' devolvió un único resultado. Procesando continuidad.");
-                            return ProcessContinuationAsync(serviceName, result);
-                        }
+                        // Aquí usamos el helper para verificar la continuidad
+                        return Observable.FromAsync(async () =>
+                            {
+                                var tieneContinuidad =
+                                    await _continuidadHelper.TieneContinuidadConfiguradaAsync(serviceName);
+                                return tieneContinuidad;
+                            })
+                            .SelectMany(tieneContinuidad =>
+                            {
+                                if (!tieneContinuidad)
+                                {
+                                    _logger.LogInfo(
+                                        $"El servicio '{serviceName}' no tiene continuidad configurada. Se retorna el resultado sin encadenamiento.");
+                                    return Observable.Return(result);
+                                }
+
+                                if (result is IEnumerable<object> resultList)
+                                {
+                                    _logger.LogInfo(
+                                        $"El servicio '{serviceName}' devolvió una colección con {resultList.Count()} elementos. Aplicando fan‑out.");
+                                    return resultList.ToObservable()
+                                        .SelectMany(item => ProcessContinuationAsync(serviceName, item));
+                                }
+                                else
+                                {
+                                    _logger.LogInfo(
+                                        $"El servicio '{serviceName}' devolvió un único resultado. Procesando continuidad.");
+                                    return ProcessContinuationAsync(serviceName, result);
+                                }
+                            });
                     });
             });
         }
 
         private IObservable<object> ProcessContinuationAsync(string serviceName, object result)
         {
+            // Diccionario para almacenar información de auditoría y de la continuidad
             Dictionary<string, object> auditData = new Dictionary<string, object>();
 
             return _servicioService.GetByNameAsync(serviceName).FirstAsync()
@@ -99,6 +120,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                     return _configService.GetByServicioIdAsync(servicio.Id).FirstAsync()
                         .SelectMany(configs =>
                         {
+                            // Si no existe configuración o no hay mapeo para continuidad, se retorna el resultado sin encadenar.
                             if (configs == null || configs.Count == 0)
                             {
                                 _logger.LogInfo(
@@ -109,6 +131,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                             var config = configs[0];
                             auditData["ConfigPadreId"] = config.Id;
 
+                            // Si la configuración no indica continuidad, se retorna el resultado original.
                             if (!config.ContinuarCon)
                             {
                                 _logger.LogInfo(
@@ -116,6 +139,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                                 return Observable.Return(result);
                             }
 
+                            // En caso de existir mapeo para continuidad, se procede a encadenar el siguiente servicio.
                             var continuationObservable = _continueWithService
                                 .GetByServicioConfiguracionIdAsync(config.Id)
                                 .SelectMany(mapeos =>
@@ -156,7 +180,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                                             }
 
                                             var nextServiceName = configContinuacion.Servicio.Name;
-                                            
+
                                             auditData["ServicioContinuacionId"] = configContinuacion.Servicio.Id;
                                             auditData["ConfigContinuacionId"] = configContinuacion.Id;
 
@@ -173,6 +197,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                                 _logger.LogError(
                                     $"Error en la continuidad del servicio '{serviceName}' (servicio padre). Se devuelve el resultado original. Error: {ex.Message}");
 
+                                // Registrar auditoría de fallo en la continuidad
                                 var auditoriaContinuacion = new ServicioEjecucion
                                 {
                                     ServicioId = auditData.ContainsKey("ServicioContinuacionId") &&
@@ -191,13 +216,14 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                                         $"Continuidad fallida en '{serviceName}'. Mapping: {auditData.GetValueOrDefault("Mapping", "N/A")}. " +
                                         $"Parámetros calculados: {System.Text.Json.JsonSerializer.Serialize(auditData.GetValueOrDefault("ParametrosContinuacion", new { }))}. " +
                                         $"Error: {ex.Message}",
-                                    Parametros = "", // Puedes registrar los parámetros originales si lo deseas.
+                                    Parametros = "",
                                     Resultado = null,
                                     CamposExtra = $"Continuidad desencadenada por '{serviceName}'"
                                 };
 
                                 try
                                 {
+                                    // Se crea un nuevo scope para registrar la auditoría
                                     using (var scope = _scopeFactory.CreateScope())
                                     {
                                         var auditoriaServiceScoped =

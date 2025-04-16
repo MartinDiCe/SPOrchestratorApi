@@ -92,6 +92,7 @@ builder.Services.AddScoped<IApiTraceRepository, ApiTraceRepository>();
 builder.Services.AddScoped<IServicioContinueWithRepository, ServicioContinueWithRepository>();
 
 builder.Services.AddScoped<IServicioService, ServicioService>();
+builder.Services.AddScoped<IContinuidadHelper, ContinuidadHelper>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
 builder.Services.AddScoped<IServicioProgramacionService, ServicioProgramacionService>();
 builder.Services.AddScoped<HangfireJobsInitializer>();
