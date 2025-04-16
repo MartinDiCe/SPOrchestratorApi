@@ -51,7 +51,7 @@ namespace SPOrchestratorAPI.Controllers.SpOrchestrator
                     else
                     {
                         return BadRequest(new
-                            { message = "El stored procedure no devolvió un contenido adecuado para un archivo." });
+                            { message = "El orquestador no devolvió un contenido adecuado para un archivo." });
                     }
                 }
                 else

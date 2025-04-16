@@ -62,10 +62,9 @@ namespace SPOrchestratorAPI.Services.SPOrchestratorServices
 
                     if (prog == null)
                     {
-                        _logger.LogError("No se encontró programacion para ConfigId={0}", config.Id);
-                        return Observable.Throw<Unit>(
-                            new InvalidOperationException($"No existe programacion para ConfigId={config.Id}")
-                        );
+                        _logger.LogInformation("No existe programacion para ConfigId={0}. Se omite ejecución.", config.Id);
+                        return Observable.Empty<Unit>();
+                        
                     }
 
                     var now = DateTime.UtcNow;
