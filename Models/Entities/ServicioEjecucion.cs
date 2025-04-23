@@ -70,5 +70,15 @@ namespace SPOrchestratorAPI.Models.Entities
         /// Campo genérico para almacenar información adicional de la ejecución (en formato JSON).
         /// </summary>
         public string? CamposExtra { get; set; }
+        
+        /// <summary>Referencia al registro de ejecución que desencadenó éste.</summary>
+        public int? ServicioEjecucionDesencadenadorId { get; set; }
+    
+        /// <summary>Navegación al desencadenador.</summary>
+        public ServicioEjecucion? ServicioEjecucionDesencadenador { get; set; }
+    
+        /// <summary>Ejecutiones que este registro desencadenó.</summary>
+        public ICollection<ServicioEjecucion> Hijos { get; set; } = new List<ServicioEjecucion>();
+        
     }
 }

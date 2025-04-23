@@ -78,6 +78,15 @@ namespace SPOrchestratorAPI.Data
             modelBuilder.Entity<ServicioConfiguracion>()
                 .Property(sc => sc.ConexionBaseDatos)
                 .HasConversion(new EncryptionConverter());
+
+            modelBuilder.Entity<ServicioEjecucion>()
+                .HasOne(e => e.ServicioEjecucionDesencadenador)         
+                .WithMany(p => p.Hijos)                                  
+                .HasForeignKey(e => e.ServicioEjecucionDesencadenadorId) 
+                .OnDelete(DeleteBehavior.Restrict);                     
+
+            modelBuilder.Entity<ServicioEjecucion>()
+                .HasIndex(e => e.ServicioEjecucionDesencadenadorId);
         }
     }
 }

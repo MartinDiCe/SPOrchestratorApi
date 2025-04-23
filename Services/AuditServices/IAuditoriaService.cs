@@ -5,10 +5,9 @@ namespace SPOrchestratorAPI.Services.AuditServices
     public interface IAuditoriaService
     {
         /// <summary>
-        /// Registra la ejecución de un proceso en la base de datos.
+        /// Registra la ejecución de un proceso en la base de datos y devuelve
+        /// la entidad con el Id asignado.
         /// </summary>
-        /// <param name="ejecucion">La información de la ejecución.</param>
-        /// <returns>Una tarea que representa la operación asíncrona.</returns>
-        Task RegistrarEjecucionAsync(ServicioEjecucion ejecucion);
+        Task<ServicioEjecucion> RegistrarEjecucionAsync(ServicioEjecucion ejecucion);
     }
 }

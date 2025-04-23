@@ -27,9 +27,6 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
         /// <summary>
         /// Constructor del servicio de orquestación en cadena.
         /// </summary>
-        /// <param name="logger">Servicio de logging genérico.</param>
-        /// <param name="executor">Encapsula la ejecución reactiva y captura de errores.</param>
-        /// <param name="scopeFactory">Factoría para crear scopes de DI aislados.</param>
         public ChainOrchestratorService(
             ILoggerService<ChainOrchestratorService> logger,
             IServiceExecutor executor,
@@ -40,13 +37,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
             _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         }
 
-        /// <summary>
-        /// Ejecuta un servicio por nombre y, si está configurado para continuar,
-        /// encadena la llamada al siguiente servicio según el mapeo definido.
-        /// </summary>
-        /// <param name="serviceName">Nombre del servicio a ejecutar.</param>
-        /// <param name="parameters">Parámetros iniciales (puede ser null).</param>
-        /// <returns>Observable con el resultado o resultados encadenados.</returns>
+        /// <inheritdoc />
         public IObservable<object> EjecutarConContinuacionAsync(
             string serviceName,
             IDictionary<string, object>? parameters = null)
@@ -55,19 +46,49 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                 () => _scopeFactory.CreateScope(),
                 scope =>
                 {
-                    var spService         = scope.ServiceProvider.GetRequiredService<ISpOrchestratorService>();
-                    var continuidadHelper = scope.ServiceProvider.GetRequiredService<IContinuidadHelper>();
+                    var spService          = scope.ServiceProvider.GetRequiredService<ISpOrchestratorService>();
+                    var continuidadHelper  = scope.ServiceProvider.GetRequiredService<IContinuidadHelper>();
+                    var servicioService    = scope.ServiceProvider.GetRequiredService<IServicioService>();
+                    var configService      = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
+                    var continueWithSvc    = scope.ServiceProvider.GetRequiredService<IServicioContinueWithService>();
+                    var auditoriaService   = scope.ServiceProvider.GetRequiredService<IAuditoriaService>();
 
-                    _logger.LogInfo(
-                        $"[Chain] Iniciando '{serviceName}' con parámetros: {System.Text.Json.JsonSerializer.Serialize(parameters)}");
+                    _logger.LogInfo($"[Chain] Iniciando '{serviceName}' con parámetros: {System.Text.Json.JsonSerializer.Serialize(parameters)}");
 
-                    // Ejecuta el servicio principal dentro de un scope aislado
                     return _executor.ExecuteAsync<object>(() =>
-                        spService.EjecutarPorNombreAsync(serviceName, parameters)
-                        .SelectMany(result =>
+                        spService.EjecutarPorNombreAsync(serviceName, parameters, skipAudit: true)
+                        .SelectMany(async result =>
                         {
-                            return continuidadHelper
-                                .TieneContinuidadConfiguradaAsync(serviceName)
+                            // Auditoría del servicio padre
+                            var serv = await servicioService.GetByNameAsync(serviceName).FirstAsync();
+                            var cfgs = await configService.GetByServicioIdAsync(serv.Id).FirstAsync();
+                            var cfg  = cfgs[0];
+
+                            int parentExecId = 0;
+                            if (cfg.GuardarRegistros)
+                            {
+                                var padreEjec = new ServicioEjecucion
+                                {
+                                    ServicioId                   = serv.Id,
+                                    ServicioConfiguracionId      = cfg.Id,
+                                    ServicioDesencadenadorId     = null,
+                                    FechaEjecucion               = DateTime.UtcNow,
+                                    Duracion                     = 0,
+                                    Estado                       = true,
+                                    MensajeError                 = null,
+                                    Parametros                   = System.Text.Json.JsonSerializer.Serialize(parameters),
+                                    Resultado                    = System.Text.Json.JsonSerializer.Serialize(result),
+                                    CamposExtra                  = null
+                                };
+                                padreEjec = await auditoriaService.RegistrarEjecucionAsync(padreEjec);
+                                parentExecId = padreEjec.Id;
+                            }
+                            return (result, parentExecId);
+                        })
+                        .SelectMany(tuple =>
+                        {
+                            var (result, parentExecId) = tuple;
+                            return continuidadHelper.TieneContinuidadConfiguradaAsync(serviceName)
                                 .ToObservable()
                                 .SelectMany(tieneContinuidad =>
                                 {
@@ -76,18 +97,14 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                                         _logger.LogInfo($"[Chain] '{serviceName}' no continúa. Retornando resultado.");
                                         return Observable.Return(result);
                                     }
-
                                     if (result is IEnumerable<object> list)
                                     {
                                         _logger.LogInfo($"[Chain] Fan-out: {list.Count()} elementos en '{serviceName}'.");
                                         return list.ToObservable()
-                                                   .SelectMany(item =>
-                                                       ProcessContinuationAsync(serviceName, item)
-                                                   );
+                                            .SelectMany(item => ProcessContinuationAsync(serviceName, item, parentExecId));
                                     }
-
                                     _logger.LogInfo($"[Chain] Continuidad para único resultado en '{serviceName}'.");
-                                    return ProcessContinuationAsync(serviceName, result);
+                                    return ProcessContinuationAsync(serviceName, result, parentExecId);
                                 });
                         })
                     );
@@ -98,30 +115,27 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
         /// <summary>
         /// Procesa la continuidad de un servicio dado su resultado y ejecuta el siguiente paso.
         /// </summary>
-        /// <param name="parentServiceName">Servicio padre desde el que se desencadena.</param>
-        /// <param name="result">Resultado del servicio padre.</param>
-        /// <returns>Observable con el resultado del servicio de continuación o el original en caso de error.</returns>
-        private IObservable<object> ProcessContinuationAsync(string parentServiceName, object result)
+        private IObservable<object> ProcessContinuationAsync(
+            string parentServiceName,
+            object result,
+            int parentExecId)
         {
             return Observable.Using<object, IServiceScope>(
                 () => _scopeFactory.CreateScope(),
                 scope =>
                 {
+                    var spService        = scope.ServiceProvider.GetRequiredService<ISpOrchestratorService>();
                     var servicioService  = scope.ServiceProvider.GetRequiredService<IServicioService>();
                     var configService    = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
                     var continueWithSvc  = scope.ServiceProvider.GetRequiredService<IServicioContinueWithService>();
                     var auditoriaService = scope.ServiceProvider.GetRequiredService<IAuditoriaService>();
 
-                    var auditData = new Dictionary<string, object>();
+                    var auditData = new Dictionary<string, object> { ["ServicioDesencadenadorExecId"] = parentExecId };
 
-                    return servicioService
-                        .GetByNameAsync(parentServiceName)
+                    return servicioService.GetByNameAsync(parentServiceName)
                         .FirstAsync()
                         .SelectMany(serv =>
                         {
-                            if (serv == null)
-                                throw new ResourceNotFoundException($"Servicio '{parentServiceName}' no encontrado.");
-
                             auditData["ServicioPadreId"] = serv.Id;
                             return configService.GetByServicioIdAsync(serv.Id).FirstAsync();
                         })
@@ -129,58 +143,47 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                         {
                             if (configs == null || configs.Count == 0)
                                 return Observable.Return(result);
-
                             var cfg = configs[0];
                             if (!cfg.ContinuarCon)
                                 return Observable.Return(result);
 
-                            return continueWithSvc
-                                .GetByServicioConfiguracionIdAsync(cfg.Id)
+                            return continueWithSvc.GetByServicioConfiguracionIdAsync(cfg.Id)
                                 .SelectMany(mapList =>
                                 {
                                     if (mapList == null || mapList.Count == 0)
                                         return Observable.Return(result);
 
-                                    var map = mapList[0];
-                                    var nextParams = MappingContinueWithHelper.TransformarResultado(
-                                        result, map.CamposRelacion, parentServiceName);
+                                    var map        = mapList[0];
+                                    var nextParams = MappingContinueWithHelper.TransformarResultado(result, map.CamposRelacion, parentServiceName);
 
-                                    return configService
-                                        .GetByIdAsync(map.ServicioContinuacionId)
+                                    return configService.GetByIdAsync(map.ServicioContinuacionId)
                                         .SelectMany(nextCfg =>
                                         {
-                                            if (nextCfg == null)
-                                                throw new ResourceNotFoundException(
-                                                    $"Configuración de continuidad no existe: {map.ServicioContinuacionId}");
-
-                                            return EjecutarConContinuacionAsync(nextCfg.Servicio.Name, nextParams);
+                                            var childExec = new ServicioEjecucion
+                                            {
+                                                ServicioId                        = nextCfg.Servicio.Id,
+                                                ServicioConfiguracionId           = nextCfg.Id,
+                                                ServicioDesencadenadorId          = (int)auditData["ServicioPadreId"],
+                                                ServicioEjecucionDesencadenadorId = parentExecId,
+                                                FechaEjecucion                    = DateTime.UtcNow,
+                                                Duracion                          = 0,
+                                                Estado                            = true,
+                                                MensajeError                      = null,
+                                                Parametros                        = System.Text.Json.JsonSerializer.Serialize(nextParams),
+                                                Resultado                         = null,
+                                                CamposExtra                       = $"Encadenado desde '{parentServiceName}'"
+                                            };
+                                            return Observable.FromAsync(async () =>
+                                            {
+                                                childExec = await auditoriaService.RegistrarEjecucionAsync(childExec);
+                                                return await spService.EjecutarPorNombreAsync(nextCfg.Servicio.Name, nextParams, skipAudit: true).FirstAsync();
+                                            });
                                         });
                                 });
                         })
                         .Catch<object, Exception>(ex =>
                         {
                             _logger.LogError($"[Chain] Error en continuidad de '{parentServiceName}': {ex.Message}");
-                            var exec = new ServicioEjecucion
-                            {
-                                ServicioId = (int)auditData.GetValueOrDefault("ServicioContinuacionId", auditData["ServicioPadreId"]),
-                                ServicioConfiguracionId = (int)auditData.GetValueOrDefault("ConfigContinuacionId", auditData["ConfigPadreId"]),
-                                ServicioDesencadenadorId = (int)auditData["ServicioPadreId"],
-                                FechaEjecucion = DateTime.UtcNow,
-                                Duracion = 0,
-                                Estado = false,
-                                MensajeError = ex.Message,
-                                Parametros = string.Empty,
-                                Resultado = null,
-                                CamposExtra = $"Error en continuidad de '{parentServiceName}'"
-                            };
-                            try
-                            {
-                                auditoriaService.RegistrarEjecucionAsync(exec).Wait();
-                            }
-                            catch (Exception logEx)
-                            {
-                                _logger.LogError($"[Chain] Error registrando auditoría: {logEx.Message}");
-                            }
                             return Observable.Return(result);
                         });
                 }

@@ -5,16 +5,12 @@ namespace SPOrchestratorAPI.Services.AuditServices
 {
     public class AuditoriaService(ApplicationDbContext context) : IAuditoriaService
     {
-        private readonly ApplicationDbContext _context = context ?? throw new ArgumentNullException(nameof(context));
-
         /// <inheritdoc />
-        public async Task RegistrarEjecucionAsync(ServicioEjecucion ejecucion)
+        public async Task<ServicioEjecucion> RegistrarEjecucionAsync(ServicioEjecucion ejecucion)
         {
-            if (ejecucion == null)
-                throw new ArgumentNullException(nameof(ejecucion));
-            
-            _context.ServicioEjecucion.Add(ejecucion);
-            await _context.SaveChangesAsync();
+            context.ServicioEjecucion.Add(ejecucion);
+            await context.SaveChangesAsync();
+            return ejecucion;  
         }
     }
 }
