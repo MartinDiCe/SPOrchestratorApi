@@ -1,124 +1,129 @@
 ﻿using System.Reactive;
 using System.Reactive.Linq;
-using SPOrchestratorAPI.Models.Entities;
+using System.Reactive.Threading.Tasks;
+using System.Text.Json;
+using SPOrchestratorAPI.Services.ChainOrchestratorServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioProgramacionServices;
 
 namespace SPOrchestratorAPI.Services.SPOrchestratorServices
 {
-    public class ScheduledOrchestratorService(
-        IServicioProgramacionService programacionService,
-        IServicioConfiguracionService configService,
-        ISpOrchestratorService spOrchestrator,
-        ILogger<ScheduledOrchestratorService> logger)
-        : IScheduledOrchestratorService
+    public class ScheduledOrchestratorService : IScheduledOrchestratorService
     {
-        private readonly IServicioProgramacionService _programacionService 
-            = programacionService ?? throw new ArgumentNullException(nameof(programacionService));
-        private readonly IServicioConfiguracionService _configService 
-            = configService ?? throw new ArgumentNullException(nameof(configService));
-        private readonly ISpOrchestratorService _spOrchestrator 
-            = spOrchestrator ?? throw new ArgumentNullException(nameof(spOrchestrator));
-        private readonly ILogger<ScheduledOrchestratorService> _logger 
-            = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly IServicioProgramacionService _programacionService;
+        private readonly IServicioConfiguracionService _configService;
+        private readonly IChainOrchestratorService _chainOrchestrator;
+        private readonly ILogger<ScheduledOrchestratorService> _logger;
+
+        public ScheduledOrchestratorService(
+            IServicioProgramacionService programacionService,
+            IServicioConfiguracionService configService,
+            IChainOrchestratorService chainOrchestrator,
+            ILogger<ScheduledOrchestratorService> logger)
+        {
+            _programacionService = programacionService ?? throw new ArgumentNullException(nameof(programacionService));
+            _configService       = configService       ?? throw new ArgumentNullException(nameof(configService));
+            _chainOrchestrator   = chainOrchestrator   ?? throw new ArgumentNullException(nameof(chainOrchestrator));
+            _logger              = logger              ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <summary>
+        /// Invocado por Hangfire. Espera a que todo el pipeline reactivo termine antes de cerrar el scope.
+        /// </summary>
+        public async Task EjecutarProgramadoAsync(string serviceName, int servicioConfigId)
+        {
+            _logger.LogInformation(
+                "Scheduler (Hangfire) → Invocando {ServiceName} (ConfigId={ConfigId})",
+                serviceName, servicioConfigId);
+
+            try
+            {
+                await EjecutarProgramado(servicioConfigId)
+                    .ToTask()
+                    .ConfigureAwait(false);
+
+                _logger.LogInformation(
+                    "Scheduler (Hangfire) → Finalizado {ServiceName}-{ConfigId}",
+                    serviceName, servicioConfigId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex, "Scheduler (Hangfire) → Error en {ServiceName}-{ConfigId}",
+                    serviceName, servicioConfigId);
+                throw; 
+            }
+        }
 
         /// <inheritdoc />
         public IObservable<Unit> EjecutarProgramado(int servicioConfigId)
         {
-            
             return _configService.GetByIdAsync(servicioConfigId)
-                
-                .SelectMany<ServicioConfiguracion, (ServicioConfiguracion, ServicioProgramacion?)>(config =>
+                .Select(config =>
                 {
                     if (config == null)
-                    {
-                        _logger.LogError("No existe la configuración con Id={ConfigId}.", servicioConfigId);
-                        return Observable.Throw<(ServicioConfiguracion, ServicioProgramacion?)>(
-                            new InvalidOperationException($"No existe config con ID {servicioConfigId}")
-                        );
-                    }
-
+                        throw new InvalidOperationException($"No existe config con ID {servicioConfigId}");
                     if (!config.EsProgramado)
-                    {
-                        _logger.LogWarning("La configuración Id={ConfigId} ya no está programada. Se omite.", config.Id);
-                        return Observable.Throw<(ServicioConfiguracion, ServicioProgramacion?)>(
-                            new InvalidOperationException($"ConfigId={config.Id} no está en modo programado.")
-                        );
-                    }
-
+                        throw new InvalidOperationException($"ConfigId={config.Id} no está programado.");
                     _logger.LogInformation(
-                        "Cargada config (Id={0}), NombreProcedimiento={1}, verificando programación...",
-                        config.Id, config.NombreProcedimiento
-                    );
-                    
-                    return _programacionService.GetByServicioConfiguracionIdAsync(config.Id)
-                        
-                        .Select(prog => (config, prog));
+                        "Scheduler → config.Id={ConfigId}, Procedimiento='{Name}', Params={Params}",
+                        config.Id, config.NombreProcedimiento, config.Parametros);
+                    return config;
                 })
-                
-                .SelectMany<(ServicioConfiguracion, ServicioProgramacion?), Unit>(tuple =>
+                .SelectMany(
+                    config => _programacionService
+                        .GetByServicioConfiguracionIdAsync(config.Id),
+                    (config, prog) => (config, prog)
+                )
+                .SelectMany(tuple =>
                 {
                     var (config, prog) = tuple;
-
                     if (prog == null)
                     {
-                        _logger.LogInformation("No existe programacion para ConfigId={0}. Se omite ejecución.", config.Id);
+                        _logger.LogInformation(
+                            "Scheduler → sin programación para ConfigId={ConfigId}", config.Id);
                         return Observable.Empty<Unit>();
-                        
                     }
 
                     var now = DateTime.UtcNow;
-
-                    if (prog.StartDate != default && now < prog.StartDate)
+                    if ((prog.StartDate != default && now < prog.StartDate) ||
+                        (prog.EndDate   != default && now > prog.EndDate))
                     {
                         _logger.LogInformation(
-                            "Todavía no llega StartDate={0} para ConfigId={1}. Se omite ejecución.",
-                            prog.StartDate, config.Id
-                        );
-                        // No hay error: simplemente no se ejecuta => Observable.Empty<Unit>()
+                            "Scheduler → fuera de ventana [{Start}–{End}] para ConfigId={ConfigId}",
+                            prog.StartDate, prog.EndDate, config.Id);
                         return Observable.Empty<Unit>();
                     }
 
-                    if (prog.EndDate != default && now > prog.EndDate)
+                    IDictionary<string, object>? parameters = null;
+                    if (!string.IsNullOrWhiteSpace(config.Parametros))
                     {
-                        _logger.LogInformation(
-                            "La configuración {0} expiró en {1}. Se omite la ejecución.",
-                            config.Id, prog.EndDate
-                        );
-                        return Observable.Empty<Unit>();
+                        try
+                        {
+                            parameters = JsonSerializer.Deserialize<Dictionary<string, object>>(config.Parametros);
+                        }
+                        catch (JsonException ex)
+                        {
+                            _logger.LogWarning(
+                                ex, "Scheduler → JSON inválido en Parametros de ConfigId={ConfigId}", config.Id);
+                        }
                     }
 
-                    // 3) Todo OK: llamar a la ejecución real
-                    _logger.LogInformation(
-                        "Ejecutando ConfigId={0}, NombreProcedimiento={1}...",
-                        config.Id, config.NombreProcedimiento
-                    );
+                    _logger.LogInformation("Scheduler → disparando Chain para ConfigId={ConfigId}", config.Id);
 
-                    return _spOrchestrator
-                        .EjecutarPorNombreAsync(config.NombreProcedimiento)
+                    return _chainOrchestrator
+                        .EjecutarConContinuacionAsync(config.Servicio?.Name, parameters)
                         .Do(
-                            // onNext
-                            resultado => {
-                                _logger.LogDebug("Recibido chunk de resultado para ConfigId={0}", config.Id);
-                            },
-                            // onError
-                            ex => {
-                                _logger.LogError(ex, "Error al ejecutar {0}", config.NombreProcedimiento);
-                            },
-                            // onCompleted
-                            () => {
-                                _logger.LogInformation("Ejecución completada para ConfigId={0}", config.Id);
-                            }
+                            _  => _logger.LogDebug("Scheduler → chunk recibido para ConfigId={ConfigId}", config.Id),
+                            ex => _logger.LogError(ex,     "Scheduler → fallo en ConfigId={ConfigId}", config.Id),
+                            () => _logger.LogInformation("Scheduler → finalizado para ConfigId={ConfigId}", config.Id)
                         )
                         .Select(_ => Unit.Default);
                 })
                 .DefaultIfEmpty(Unit.Default)
                 .Catch<Unit, Exception>(ex =>
                 {
-                    _logger.LogError(
-                        ex, "Falla global al ejecutar programado para ConfigId={0}.", 
-                        servicioConfigId
-                    );
+                    _logger.LogError(ex, "Scheduler → error global en ConfigId={ConfigId}", servicioConfigId);
                     return Observable.Throw<Unit>(ex);
                 });
         }

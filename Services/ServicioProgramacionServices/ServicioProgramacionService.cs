@@ -32,14 +32,9 @@ namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
             var programacion = new ServicioProgramacion
             {
                 ServicioConfiguracionId = dto.ServicioConfiguracionId,
-                CronExpression = dto.CronExpression,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                ServicioConfiguracion = new ServicioConfiguracion
-                {
-                    Id = dto.ServicioConfiguracionId,
-                    Servicio = new Servicio() 
-                }
+                CronExpression          = dto.CronExpression,
+                StartDate               = dto.StartDate,
+                EndDate                 = dto.EndDate
             };
 
             _logger.LogInfo("Iniciando la creación de una nueva programación de servicio...");
@@ -65,14 +60,9 @@ namespace SPOrchestratorAPI.Services.ServicioProgramacionServices
             var programacion = new ServicioProgramacion
             {
                 ServicioConfiguracionId = dto.ServicioConfiguracionId,
-                CronExpression = dto.CronExpression,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                ServicioConfiguracion = new ServicioConfiguracion
-                {
-                    Id = dto.ServicioConfiguracionId,
-                    Servicio = new Servicio() 
-                }
+                CronExpression          = dto.CronExpression,
+                StartDate               = dto.StartDate,
+                EndDate                 = dto.EndDate
             };
 
             _logger.LogInfo($"Iniciando la actualización de la programación con ID {dto.Id}...");

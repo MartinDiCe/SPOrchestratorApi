@@ -1,4 +1,5 @@
-﻿namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
+﻿// IChainOrchestratorService.cs
+namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
 {
     /// <summary>
     /// Interfaz para la orquestación en cadena, que permite ejecutar un servicio
@@ -11,7 +12,9 @@
         /// </summary>
         /// <param name="serviceName">Nombre del servicio a ejecutar.</param>
         /// <param name="parameters">Parámetros iniciales para el servicio.</param>
-        /// <returns>Un flujo reactivo con el resultado del servicio principal y sus continuaciones.</returns>
-        IObservable<object> EjecutarConContinuacionAsync(string serviceName, IDictionary<string, object>? parameters = null);
+        /// <returns>Flujo reactivo con el resultado del servicio principal y sus continuaciones.</returns>
+        IObservable<object> EjecutarConContinuacionAsync(
+            string serviceName,
+            IDictionary<string, object>? parameters = null);
     }
 }

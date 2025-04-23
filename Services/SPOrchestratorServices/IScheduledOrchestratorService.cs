@@ -1,16 +1,20 @@
 ﻿using System.Reactive;
 
-namespace SPOrchestratorAPI.Services.SPOrchestratorServices;
-
-public interface IScheduledOrchestratorService
+namespace SPOrchestratorAPI.Services.SPOrchestratorServices
 {
     /// <summary>
-    /// Ejecuta de forma programada un servicio, en modo 100% reactivo, validando
-    /// las fechas y la bandera <c>EsProgramado</c> de su configuración asociada.
+    /// Define las operaciones para la ejecución programada de servicios.
     /// </summary>
-    /// <param name="servicioConfigId">ID de la configuración que se desea ejecutar.</param>
-    /// <returns>
-    /// Un <see cref="IObservable{Unit}"/> que emite un valor al completar (o lanza excepción si falla).
-    /// </returns>
-    IObservable<Unit> EjecutarProgramado(int servicioConfigId);
+    public interface IScheduledOrchestratorService
+    {
+        /// <summary>
+        /// Invocado por Hangfire: lanza el pipeline y espera a que termine.
+        /// </summary>
+        Task EjecutarProgramadoAsync(string serviceName, int servicioConfigId);
+
+        /// <summary>
+        /// Pipeline reactivo puro (para pruebas manuales).
+        /// </summary>
+        IObservable<Unit> EjecutarProgramado(int servicioConfigId);
+    }
 }
