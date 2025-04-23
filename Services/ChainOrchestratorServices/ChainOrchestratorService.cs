@@ -1,5 +1,4 @@
-﻿using System.Reactive.Linq; 
-using System.Reactive.Threading.Tasks;
+﻿using System.Reactive.Linq;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.Entities;
@@ -12,28 +11,20 @@ using SPOrchestratorAPI.Services.SPOrchestratorServices;
 
 namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
 {
-    /// <summary>
-    /// Servicio que implementa la lógica de encadenamiento de servicios.
-    /// Se encarga de invocar el servicio principal, verificar si tiene continuidad y,
-    /// en caso afirmativo, transformar el resultado para ejecutar el siguiente servicio.
-    /// Aplica fan-out de forma transparente si el resultado es una colección.
-    /// </summary>
+    /// <inheritdoc />
     public class ChainOrchestratorService : IChainOrchestratorService
     {
         private readonly ILoggerService<ChainOrchestratorService> _logger;
         private readonly IServiceExecutor _executor;
         private readonly IServiceScopeFactory _scopeFactory;
 
-        /// <summary>
-        /// Constructor del servicio de orquestación en cadena.
-        /// </summary>
         public ChainOrchestratorService(
             ILoggerService<ChainOrchestratorService> logger,
             IServiceExecutor executor,
             IServiceScopeFactory scopeFactory)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            _logger       = logger      ?? throw new ArgumentNullException(nameof(logger));
+            _executor     = executor    ?? throw new ArgumentNullException(nameof(executor));
             _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         }
 
@@ -46,79 +37,63 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                 () => _scopeFactory.CreateScope(),
                 scope =>
                 {
-                    var spService          = scope.ServiceProvider.GetRequiredService<ISpOrchestratorService>();
-                    var continuidadHelper  = scope.ServiceProvider.GetRequiredService<IContinuidadHelper>();
-                    var servicioService    = scope.ServiceProvider.GetRequiredService<IServicioService>();
-                    var configService      = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
-                    var continueWithSvc    = scope.ServiceProvider.GetRequiredService<IServicioContinueWithService>();
-                    var auditoriaService   = scope.ServiceProvider.GetRequiredService<IAuditoriaService>();
+                    var spService        = scope.ServiceProvider.GetRequiredService<ISpOrchestratorService>();
+                    var servicioService  = scope.ServiceProvider.GetRequiredService<IServicioService>();
+                    var configService    = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
+                    var auditoriaService = scope.ServiceProvider.GetRequiredService<IAuditoriaService>();
 
-                    _logger.LogInfo($"[Chain] Iniciando '{serviceName}' con parámetros: {System.Text.Json.JsonSerializer.Serialize(parameters)}");
+                    _logger.LogInfo($"[Chain] Iniciando '{serviceName}'");
 
                     return _executor.ExecuteAsync<object>(() =>
                         spService.EjecutarPorNombreAsync(serviceName, parameters, skipAudit: true)
                         .SelectMany(async result =>
                         {
-                            // Auditoría del servicio padre
                             var serv = await servicioService.GetByNameAsync(serviceName).FirstAsync();
-                            var cfgs = await configService.GetByServicioIdAsync(serv.Id).FirstAsync();
-                            var cfg  = cfgs[0];
+                            var cfg  = (await configService.GetByServicioIdAsync(serv.Id).FirstAsync())
+                                       .FirstOrDefault();
 
-                            int parentExecId = 0;
-                            if (cfg.GuardarRegistros)
+                            var execId = 0;
+                            if (cfg is { GuardarRegistros: true })
                             {
-                                var padreEjec = new ServicioEjecucion
+                                var ejec = new ServicioEjecucion
                                 {
-                                    ServicioId                   = serv.Id,
-                                    ServicioConfiguracionId      = cfg.Id,
-                                    ServicioDesencadenadorId     = null,
-                                    FechaEjecucion               = DateTime.UtcNow,
-                                    Duracion                     = 0,
-                                    Estado                       = true,
-                                    MensajeError                 = null,
-                                    Parametros                   = System.Text.Json.JsonSerializer.Serialize(parameters),
-                                    Resultado                    = System.Text.Json.JsonSerializer.Serialize(result),
-                                    CamposExtra                  = null
+                                    ServicioId              = serv.Id,
+                                    ServicioConfiguracionId = cfg.Id,
+                                    FechaEjecucion          = DateTime.UtcNow,
+                                    Estado                  = true,
+                                    Parametros              = System.Text.Json.JsonSerializer.Serialize(parameters),
+                                    Resultado               = System.Text.Json.JsonSerializer.Serialize(result)
                                 };
-                                padreEjec = await auditoriaService.RegistrarEjecucionAsync(padreEjec);
-                                parentExecId = padreEjec.Id;
+                                execId = (await auditoriaService.RegistrarEjecucionAsync(ejec)).Id;
                             }
-                            return (result, parentExecId);
+                            return (result, execId);
                         })
-                        .SelectMany(tuple =>
+                        .SelectMany(t =>
                         {
-                            var (result, parentExecId) = tuple;
-                            return continuidadHelper.TieneContinuidadConfiguradaAsync(serviceName)
-                                .ToObservable()
-                                .SelectMany(tieneContinuidad =>
-                                {
-                                    if (!tieneContinuidad)
-                                    {
-                                        _logger.LogInfo($"[Chain] '{serviceName}' no continúa. Retornando resultado.");
-                                        return Observable.Return(result);
-                                    }
-                                    if (result is IEnumerable<object> list)
-                                    {
-                                        _logger.LogInfo($"[Chain] Fan-out: {list.Count()} elementos en '{serviceName}'.");
-                                        return list.ToObservable()
-                                            .SelectMany(item => ProcessContinuationAsync(serviceName, item, parentExecId));
-                                    }
-                                    _logger.LogInfo($"[Chain] Continuidad para único resultado en '{serviceName}'.");
-                                    return ProcessContinuationAsync(serviceName, result, parentExecId);
-                                });
-                        })
-                    );
-                }
-            );
+                            var (result, execId) = t;
+
+                            return result is IEnumerable<object> list
+                                ? list.ToObservable()
+                                      .SelectMany(item =>
+                                          ContinueRecursively(
+                                              serviceName,
+                                              item,
+                                              execId,
+                                              new HashSet<string> { serviceName }))  // ← copia
+                                : ContinueRecursively(
+                                      serviceName,
+                                      result,
+                                      execId,
+                                      new HashSet<string> { serviceName });
+                        }));
+                });
         }
 
-        /// <summary>
-        /// Procesa la continuidad de un servicio dado su resultado y ejecuta el siguiente paso.
-        /// </summary>
-        private IObservable<object> ProcessContinuationAsync(
-            string parentServiceName,
+        private IObservable<object> ContinueRecursively(
+            string currentService,
             object result,
-            int parentExecId)
+            int parentExecId,
+            HashSet<string> visited)
         {
             return Observable.Using<object, IServiceScope>(
                 () => _scopeFactory.CreateScope(),
@@ -130,64 +105,96 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                     var continueWithSvc  = scope.ServiceProvider.GetRequiredService<IServicioContinueWithService>();
                     var auditoriaService = scope.ServiceProvider.GetRequiredService<IAuditoriaService>();
 
-                    var auditData = new Dictionary<string, object> { ["ServicioDesencadenadorExecId"] = parentExecId };
-
-                    return servicioService.GetByNameAsync(parentServiceName)
+                    return servicioService.GetByNameAsync(currentService)
                         .FirstAsync()
-                        .SelectMany(serv =>
+                        .SelectMany(serv => configService.GetByServicioIdAsync(serv.Id).FirstAsync())
+                        .Select(cfgs => cfgs.FirstOrDefault())
+                        .SelectMany(cfg =>
                         {
-                            auditData["ServicioPadreId"] = serv.Id;
-                            return configService.GetByServicioIdAsync(serv.Id).FirstAsync();
-                        })
-                        .SelectMany(configs =>
-                        {
-                            if (configs == null || configs.Count == 0)
-                                return Observable.Return(result);
-                            var cfg = configs[0];
-                            if (!cfg.ContinuarCon)
-                                return Observable.Return(result);
+                            if (cfg is null || !cfg.ContinuarCon)
+                                return Observable.Return<object>(result);
 
                             return continueWithSvc.GetByServicioConfiguracionIdAsync(cfg.Id)
-                                .SelectMany(mapList =>
-                                {
-                                    if (mapList == null || mapList.Count == 0)
-                                        return Observable.Return(result);
-
-                                    var map        = mapList[0];
-                                    var nextParams = MappingContinueWithHelper.TransformarResultado(result, map.CamposRelacion, parentServiceName);
-
-                                    return configService.GetByIdAsync(map.ServicioContinuacionId)
-                                        .SelectMany(nextCfg =>
-                                        {
-                                            var childExec = new ServicioEjecucion
-                                            {
-                                                ServicioId                        = nextCfg.Servicio.Id,
-                                                ServicioConfiguracionId           = nextCfg.Id,
-                                                ServicioDesencadenadorId          = (int)auditData["ServicioPadreId"],
-                                                ServicioEjecucionDesencadenadorId = parentExecId,
-                                                FechaEjecucion                    = DateTime.UtcNow,
-                                                Duracion                          = 0,
-                                                Estado                            = true,
-                                                MensajeError                      = null,
-                                                Parametros                        = System.Text.Json.JsonSerializer.Serialize(nextParams),
-                                                Resultado                         = null,
-                                                CamposExtra                       = $"Encadenado desde '{parentServiceName}'"
-                                            };
-                                            return Observable.FromAsync(async () =>
-                                            {
-                                                childExec = await auditoriaService.RegistrarEjecucionAsync(childExec);
-                                                return await spService.EjecutarPorNombreAsync(nextCfg.Servicio.Name, nextParams, skipAudit: true).FirstAsync();
-                                            });
-                                        });
-                                });
+                                .FirstAsync()
+                                .SelectMany(maps => maps.ToObservable())
+                                .SelectMany(map =>
+                                    HandleMap(map, result, currentService, parentExecId,
+                                              visited, spService, configService, auditoriaService));
+                        })
+                        .Catch<object, ResourceNotFoundException>(ex =>
+                        {
+                            _logger.LogWarning($"[Chain] {ex.Message}");
+                            return Observable.Return<object>(result);
                         })
                         .Catch<object, Exception>(ex =>
                         {
-                            _logger.LogError($"[Chain] Error en continuidad de '{parentServiceName}': {ex.Message}");
-                            return Observable.Return(result);
+                            _logger.LogError($"[Chain] Error en '{currentService}': {ex.Message}");
+                            return Observable.Return<object>(result);
                         });
-                }
-            );
+                });
+        }
+
+        private IObservable<object> HandleMap(
+            ServicioContinueWith map,
+            object parentResult,
+            string parentService,
+            int parentExecId,
+            HashSet<string> visited,
+            ISpOrchestratorService spService,
+            IServicioConfiguracionService configService,
+            IAuditoriaService auditoriaService)
+        {
+            return configService.GetByIdAsync(map.ServicioContinuacionId)
+                .Catch<ServicioConfiguracion, ResourceNotFoundException>(ex =>
+                {
+                    _logger.LogWarning($"[Chain] Configuración {map.ServicioContinuacionId} no encontrada; se omite la continuación.");
+                    return Observable.Empty<ServicioConfiguracion>();
+                })
+                .SelectMany(nextCfg =>
+                {
+                    var nextService = nextCfg.Servicio.Name;
+
+                    if (!visited.Add(nextService))
+                    {
+                        _logger.LogWarning($"[Chain] Ciclo detectado entre '{parentService}' y '{nextService}'.");
+                        return Observable.Return<object>(parentResult);
+                    }
+
+                    var nextParams = MappingContinueWithHelper.TransformarResultado(
+                        parentResult, map.CamposRelacion, parentService);
+
+                    return Observable.FromAsync(async () =>
+                    {
+                        var exec = new ServicioEjecucion
+                        {
+                            ServicioId                        = nextCfg.Servicio.Id,
+                            ServicioConfiguracionId           = nextCfg.Id,
+                            ServicioEjecucionDesencadenadorId = parentExecId,
+                            FechaEjecucion                    = DateTime.UtcNow,
+                            Estado                            = true,
+                            Parametros                        = System.Text.Json.JsonSerializer.Serialize(nextParams)
+                        };
+                        exec = await auditoriaService.RegistrarEjecucionAsync(exec);
+
+                        var res = await spService
+                            .EjecutarPorNombreAsync(nextService, nextParams, skipAudit: true)
+                            .FirstAsync();
+
+                        return (nextService, res, exec.Id);
+                    })
+                    .SelectMany(tuple =>
+                    {
+                        var (srv, res, execId) = tuple;
+                        return res is IEnumerable<object> list
+                            ? list.ToObservable().SelectMany(item =>
+                                  ContinueRecursively(
+                                      srv,
+                                      item,
+                                      execId,
+                                      new HashSet<string>(visited)))   // ← copia
+                            : ContinueRecursively(srv, res, execId, visited);
+                    });
+                });
         }
     }
 }
