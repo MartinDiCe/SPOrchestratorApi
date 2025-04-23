@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SPOrchestratorAPI.Configuration;
@@ -34,58 +35,69 @@ using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 0) Configurar Hangfire
-builder.Services.AddHangfire(config =>
+// ---------------------------------------------------------
+// 0) Configurar Hangfire (storage + serializers)
+// ---------------------------------------------------------
+builder.Services.AddHangfire(cfg =>
 {
-    config
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
+    cfg.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+       .UseSimpleAssemblyNameTypeSerializer()
+       .UseRecommendedSerializerSettings()
+       .UseSqlServerStorage(
+           builder.Configuration.GetConnectionString("DefaultConnection"),
+           new SqlServerStorageOptions
+           {
+               CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+               SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+               QueuePollInterval = TimeSpan.Zero,
+               UseRecommendedIsolationLevel = true,
+               DisableGlobalLocks = true
+           });
 });
 
-// 2) Agregar el servidor de Hangfire
+// ---------------------------------------------------------
+// 1) Registrar el servidor de Hangfire como HostedService
+//    (¡Solo una vez!)
+// ---------------------------------------------------------
 builder.Services.AddHangfireServer(options =>
 {
-    // Número de hilos/Workers
     options.WorkerCount = 1;
+    options.Queues      = new[] { "default" };
 });
 
 // ---------------------------------------------------------
-// 1) Configurar servicios básicos (Controllers, Swagger, etc.)
+// 2) Servicios básicos (Controllers, Swagger, ModelValidation)
 // ---------------------------------------------------------
 builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
-
+       .AddJsonOptions(opts =>
+           opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSwaggerConfiguration();
-
-builder.Services.Configure<ApiBehaviorOptions>(options =>
-{
-    options.InvalidModelStateResponseFactory = context => ModelValidationResponseFactory.CustomResponse(context.ModelState);
-});
-
-// ---------------------------------------------------------
-// 2) Configurar base de datos y DbContext
-// ---------------------------------------------------------
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.Configure<ApiBehaviorOptions>(opts =>
+    opts.InvalidModelStateResponseFactory =
+        context => ModelValidationResponseFactory.CustomResponse(context.ModelState)
+);
 
 // ---------------------------------------------------------
-// 3) Habilitar acceso al contexto HTTP (IHttpContextAccessor)
+// 3) EF Core DbContext
+// ---------------------------------------------------------
+builder.Services.AddDbContext<ApplicationDbContext>(opts =>
+    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
+
+// ---------------------------------------------------------
+// 4) IHttpContextAccessor
 // ---------------------------------------------------------
 builder.Services.AddHttpContextAccessor();
 
 // ---------------------------------------------------------
-// 4) Registrar servicios y utilidades personalizadas
+// 5) Repositorios y servicios de aplicación
 // ---------------------------------------------------------
 builder.Services.AddSingleton<IRecurringJobRegistrar, RecurringJobRegistrar>();
+
 builder.Services.AddScoped<IServiceExecutor, ReactiveServiceExecutor>();
 builder.Services.AddScoped<AuditEntitiesService>();
 builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
-builder.Services.AddScoped<ILoggerService<ServicioRepository>, LoggerService<ServicioRepository>>();
+
 builder.Services.AddScoped<IServicioRepository, ServicioRepository>();
 builder.Services.AddScoped<IServicioConfiguracionRepository, ServicioConfiguracionRepository>();
 builder.Services.AddScoped<IServicioProgramacionRepository, ServicioProgramacionRepository>();
@@ -97,7 +109,6 @@ builder.Services.AddScoped<IServicioService, ServicioService>();
 builder.Services.AddScoped<IContinuidadHelper, ContinuidadHelper>();
 builder.Services.AddScoped<IServicioConfiguracionService, ServicioConfiguracionService>();
 builder.Services.AddScoped<IServicioProgramacionService, ServicioProgramacionService>();
-builder.Services.AddScoped<HangfireJobsInitializer>();
 builder.Services.AddScoped<IScheduledOrchestratorService, ScheduledOrchestratorService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<IConnectionTesterService, ConnectionTesterService>();
@@ -111,15 +122,13 @@ builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
 builder.Services.AddScoped<IServicioContinueWithService, ServicioContinueWithService>();
 builder.Services.AddScoped<IChainOrchestratorService, ChainOrchestratorService>();
-
 builder.Services.AddHttpClient<IEndpointService, EndpointService>();
 
 builder.Services.AddSwaggerExamplesFromAssemblyOf<StoredProcedureExecutionRequestMultipleExamples>();
-
 builder.Services.AddMemoryCache();
 
 // ---------------------------------------------------------
-// 5) Configurar logging de forma condicional
+// 6) Logging condicional (añadimos filtros para Hangfire)
 // ---------------------------------------------------------
 if (builder.Environment.IsProduction())
 {
@@ -127,39 +136,44 @@ if (builder.Environment.IsProduction())
 }
 else
 {
-    // En desarrollo, se agregan los proveedores para consola y debug, con un nivel detallado.
     builder.Logging.ClearProviders();
     builder.Logging.AddConsole();
     builder.Logging.AddDebug();
     builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+    builder.Logging.AddFilter("Hangfire.Server.RecurringJobScheduler", LogLevel.Debug);
+    builder.Logging.AddFilter("Hangfire.Server.Worker",           LogLevel.Debug);
+    builder.Logging.AddFilter(
+        "SPOrchestratorAPI.Services.SPOrchestratorServices.ScheduledOrchestratorService",
+        LogLevel.Debug
+    );
 }
 
 var app = builder.Build();
 
 // ---------------------------------------------------------
-// 6) Panel de Control de Hangfire)
+// 7) Dashboard de Hangfire (UI)
 // ---------------------------------------------------------
-app.UseHangfireDashboard();
+app.UseHangfireDashboard("/hangfire");
 
 // ---------------------------------------------------------
-// 6.1) Refrescar automáticamente todos los recurring jobs
+// 8) Registrar / refrescar todos los recurring jobs
 // ---------------------------------------------------------
 using (var scope = app.Services.CreateScope())
 {
-    var registrar = scope.ServiceProvider.GetRequiredService<IRecurringJobRegistrar>();
-    registrar.RegisterAllJobs();
+    scope.ServiceProvider
+         .GetRequiredService<IRecurringJobRegistrar>()
+         .RegisterAllJobs();
 }
 
 // ---------------------------------------------------------
-// 7) Inicializar la base de datos (semillas, migraciones, etc.)
+// 9) Inicializar BD (migraciones, seeds, etc.)
 // ---------------------------------------------------------
 DatabaseInitializer.Initialize(app.Services);
 
 // ---------------------------------------------------------
-// 8) Pipeline de Middlewares
+// 10) Pipeline de Middlewares
 // ---------------------------------------------------------
-
-// En entornos de desarrollo, usar Swagger y el middleware de logging de request/response.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -167,21 +181,12 @@ if (app.Environment.IsDevelopment())
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
 
-// Registramos ExceptionMiddleware.
 app.UseMiddleware<ApiTraceMiddleware>();
-
-// Middleware para captura global de excepciones.
 app.UseMiddleware<ExceptionMiddleware>();
 
-// Iniciar el suscriptor reactivo para las trazas.
-var scopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
-ApiTraceBus.StartTraceSubscriber(scopeFactory);
+// Suscripción al bus de trazas
+ApiTraceBus.StartTraceSubscriber(app.Services.GetRequiredService<IServiceScopeFactory>());
 
-// Middleware de autorización (si es necesario).
 app.UseAuthorization();
-
-// Enruta las peticiones a los endpoints de los Controllers.
 app.MapControllers();
-
-// Arranca la aplicación.
 app.Run();

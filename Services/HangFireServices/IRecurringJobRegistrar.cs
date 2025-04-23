@@ -1,9 +1,10 @@
-﻿namespace SPOrchestratorAPI.Services.HangFireServices;
-
-public interface IRecurringJobRegistrar
+﻿namespace SPOrchestratorAPI.Services.HangFireServices
 {
     /// <summary>
     /// Registra en Hangfire todos los recurring jobs (incluido el refresco automático).
     /// </summary>
-    void RegisterAllJobs();
+    public interface IRecurringJobRegistrar
+    {
+        void RegisterAllJobs();
+    }
 }

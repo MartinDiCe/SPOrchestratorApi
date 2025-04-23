@@ -1,92 +1,62 @@
-﻿using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
-using Hangfire;
+﻿using Hangfire;
+using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
 using SPOrchestratorAPI.Services.ServicioProgramacionServices;
 using SPOrchestratorAPI.Services.SPOrchestratorServices;
-using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
-using SPOrchestratorAPI.Models.Repositories.ParameterRepositories;
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 
 namespace SPOrchestratorAPI.Services.HangFireServices
 {
-
-    /// <summary>
-    /// Implementación de <see cref="IRecurringJobRegistrar"/>, se encarga de
-    /// borrar y re-registrar jobs con prefijo "Orquestador-".
-    /// </summary>
-    public class RecurringJobRegistrar(
-        IServiceScopeFactory scopes,
-        ILogger<RecurringJobRegistrar> logger)
-        : IRecurringJobRegistrar
+    public class RecurringJobRegistrar : IRecurringJobRegistrar
     {
-        private readonly IServiceScopeFactory _scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
-        private readonly ILogger<RecurringJobRegistrar> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly IServiceScopeFactory _scopes;
+        private readonly ILogger<RecurringJobRegistrar> _logger;
+
+        public RecurringJobRegistrar(IServiceScopeFactory scopes,
+                                     ILogger<RecurringJobRegistrar> logger)
+        {
+            _scopes = scopes;
+            _logger = logger;
+        }
 
         public void RegisterAllJobs()
         {
             _logger.LogInformation("=== Registrando todos los recurring jobs ===");
 
-            using (var scope = _scopes.CreateScope())
-            {
-                var paramRepo = scope.ServiceProvider.GetRequiredService<IParameterRepository>();
-                
-                var cronParam = paramRepo
-                    .GetByNameAsync("JobsRefreshCron")
-                    .GetAwaiter()
-                    .GetResult()
-                    ?.ParameterValue
-                    ?? "0 */3 * * *";  
+            using var scope = _scopes.CreateScope();
+            var configSvc = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
+            var progSvc   = scope.ServiceProvider.GetRequiredService<IServicioProgramacionService>();
 
-                RecurringJob.AddOrUpdate(
-                    "HangfireJobRefresher",
-                    () => scope.ServiceProvider
-                        .GetRequiredService<IRecurringJobRegistrar>()
-                        .RegisterAllJobs(),
-                    cronParam,
+            var configs = configSvc
+                .GetAllAsync()
+                .FirstAsync().ToTask().Result
+                .Where(c => c.EsProgramado);
+
+            foreach (var cfg in configs)
+            {
+                var prog = progSvc
+                    .GetByServicioConfiguracionIdAsync(cfg.Id)
+                    .FirstAsync().ToTask().Result;
+
+                if (prog == null || string.IsNullOrWhiteSpace(prog.CronExpression))
+                    continue;
+
+                // Saco el nombre real del Servicio para pasar a Hangfire
+                var serviceName = cfg.Servicio?.Name
+                    ?? throw new InvalidOperationException(
+                        $"La configuración {cfg.Id} no tiene Servicio asociado.");
+
+                var jobId = $"Orquestador-{serviceName}-{cfg.Id}";
+
+                RecurringJob.AddOrUpdate<IScheduledOrchestratorService>(
+                    jobId,
+                    sched => sched.EjecutarProgramadoAsync(serviceName, cfg.Id),
+                    prog.CronExpression,
                     TimeZoneInfo.Local
                 );
-                _logger.LogInformation(" → Job de refresco registrado (CRON={Cron})", cronParam);
-            }
 
-            using (var scope = _scopes.CreateScope())
-            {
-                var configSvc = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
-                var progSvc = scope.ServiceProvider.GetRequiredService<IServicioProgramacionService>();
-                var scheduler = scope.ServiceProvider.GetRequiredService<IScheduledOrchestratorService>();
-
-                // Leemos todas las configuraciones programadas
-                var configs = configSvc
-                    .GetAllAsync()
-                    .FirstAsync()
-                    .ToTask()
-                    .GetAwaiter()
-                    .GetResult()
-                    .Where(c => c.EsProgramado);
-
-                foreach (var cfg in configs)
-                {
-                    // Bloqueamos la llamada a la programación
-                    var prog = progSvc
-                        .GetByServicioConfiguracionIdAsync(cfg.Id)
-                        .FirstAsync()
-                        .ToTask()
-                        .GetAwaiter()
-                        .GetResult();
-
-                    if (prog == null || string.IsNullOrWhiteSpace(prog.CronExpression))
-                    {
-                        _logger.LogWarning("ConfigId={ConfigId} sin prog/cron → omitido", cfg.Id);
-                        continue;
-                    }
-
-                    var jobId = $"Orquestador-{cfg.Id}";
-                    RecurringJob.AddOrUpdate(
-                        jobId,
-                        () => scheduler.EjecutarProgramado(cfg.Id),
-                        prog.CronExpression,
-                        TimeZoneInfo.Local
-                    );
-                    _logger.LogInformation(" → Registrado {JobId} ({Cron})", jobId, prog.CronExpression);
-                }
+                _logger.LogInformation("→ Registrado {JobId} ({Cron})",
+                                       jobId, prog.CronExpression);
             }
         }
     }
