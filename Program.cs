@@ -20,6 +20,7 @@ using SPOrchestratorAPI.Services.ChainOrchestratorServices;
 using SPOrchestratorAPI.Services.ConnectionTestingServices;
 using SPOrchestratorAPI.Services.ContinueWithServices;
 using SPOrchestratorAPI.Services.EndpointServices;
+using SPOrchestratorAPI.Services.HangFireServices;
 using SPOrchestratorAPI.Services.LoggingServices;
 using SPOrchestratorAPI.Services.ParameterServices;
 using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
@@ -80,6 +81,7 @@ builder.Services.AddHttpContextAccessor();
 // ---------------------------------------------------------
 // 4) Registrar servicios y utilidades personalizadas
 // ---------------------------------------------------------
+builder.Services.AddSingleton<IRecurringJobRegistrar, RecurringJobRegistrar>();
 builder.Services.AddScoped<IServiceExecutor, ReactiveServiceExecutor>();
 builder.Services.AddScoped<AuditEntitiesService>();
 builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
@@ -134,8 +136,19 @@ else
 
 var app = builder.Build();
 
+// ---------------------------------------------------------
 // 6) Panel de Control de Hangfire)
-app.UseHangfireDashboard("/hangfire");
+// ---------------------------------------------------------
+app.UseHangfireDashboard();
+
+// ---------------------------------------------------------
+// 6.1) Refrescar automáticamente todos los recurring jobs
+// ---------------------------------------------------------
+using (var scope = app.Services.CreateScope())
+{
+    var registrar = scope.ServiceProvider.GetRequiredService<IRecurringJobRegistrar>();
+    registrar.RegisterAllJobs();
+}
 
 // ---------------------------------------------------------
 // 7) Inicializar la base de datos (semillas, migraciones, etc.)

@@ -31,7 +31,7 @@ namespace SPOrchestratorAPI.Models.Entities
         /// establecida mediante la clave foránea <see cref="ServicioConfiguracionId"/>.
         /// </summary>
         [ForeignKey(nameof(ServicioConfiguracionId))]
-        public required ServicioConfiguracion ServicioConfiguracion { get; set; }
+        public ServicioConfiguracion ServicioConfiguracion { get; set; }
 
         /// <summary>
         /// Expresión CRON para definir la planificación.

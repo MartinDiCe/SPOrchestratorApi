@@ -47,7 +47,7 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
 
                 await parameterRepository.CreateAsync(newAmbienteParameter);
             }
-            
+
             const string apiTraceEnabledParameterName = "ApiTraceEnabled";
             var apiTraceEnabledParameter = await parameterRepository.GetByNameAsync(apiTraceEnabledParameterName);
             if (apiTraceEnabledParameter == null)
@@ -63,6 +63,23 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
                 };
 
                 await parameterRepository.CreateAsync(newApiTraceEnabledParameter);
+            }
+
+            const string refreshCronParam = "JobsRefreshCron";
+            var refreshCron = await parameterRepository.GetByNameAsync(refreshCronParam);
+            if (refreshCron == null)
+            {
+                var newRefreshCron = new Parameter
+                {
+                    ParameterName = refreshCronParam,
+                    ParameterValue = "0 */3 * * *",
+                    ParameterDescription = "CRON para refrescar recurring jobs",
+                    ParameterCategory = "Hangfire",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                };
+
+                await parameterRepository.CreateAsync(newRefreshCron);
             }
         }
     }
