@@ -1,61 +1,44 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
+﻿using System.Reflection;
+using System.Text.Json;
 
 namespace SPOrchestratorAPI.Helpers
 {
     /// <summary>
-    /// Provee métodos para validar y parsear la cadena de mapeo de continuación.
-    /// El formato esperado es:
-    /// "CampoResultado=ParametroContinuacion;OtroCampo=OtroParametro"
-    /// Se permiten valores fijos indicando un prefijo, por ejemplo: "+ValorFijo=ParametroContinuacion".
+    /// Helper para transformar el resultado de un servicio en el conjunto de
+    /// parámetros de su <c>Continue-With</c>.
+    /// <para>
+    /// Soporta:
+    /// <list type="bullet">
+    ///   <item>Valores fijos con el prefijo “<c>+</c>”.</item>
+    ///   <item>JSONPath mediante <see cref="JsonExtractor"/>.</item>
+    ///   <item>Resultado como <see cref="string"/> JSON (objeto o array).</item>
+    ///   <item><see cref="JsonElement"/>, <see cref="IDictionary{TKey,TValue}"/> y reflexión.</item>
+    /// </list>
+    /// Todo de forma <b>case-insensitive</b>.
+    /// </para>
     /// </summary>
     public static class MappingContinueWithHelper
     {
-        public static IDictionary<string, string> ParseMapping(string mappingString)
-        {
-            if (string.IsNullOrWhiteSpace(mappingString))
-                throw new FormatException("La cadena de mapeo no puede estar vacía.");
-
-            mappingString = mappingString.Trim();
-            var pairs = mappingString.Split(';')
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .ToList();
-
-            var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var pair in pairs)
-            {
-                var parts = pair.Trim().Split('=');
-                if (parts.Length != 2)
-                    throw new FormatException(
-                        $"El par '{pair}' no está en el formato correcto. Se esperaba 'clave=valor'.");
-
-                string clave = parts[0].Trim();
-                string valor = parts[1].Trim();
-                if (string.IsNullOrEmpty(clave) || string.IsNullOrEmpty(valor))
-                    throw new FormatException($"El par '{pair}' contiene clave o valor vacío.");
-
-                mapping[clave] = valor;
-            }
-
-            return mapping;
-        }
-
-        public static IDictionary<string, string> ValidateAndParseMapping(string mappingString,
+        #region Parse & Validate
+        /// <inheritdoc cref="ParseMapping(string)"/>
+        public static IDictionary<string, string> ValidateAndParseMapping(
+            string mappingString,
             IList<string>? parametrosEsperados = null)
         {
             var mapping = ParseMapping(mappingString);
-            if (parametrosEsperados != null && parametrosEsperados.Any())
+
+            if (parametrosEsperados is { Count: > 0 })
             {
-                foreach (var kvp in mapping)
+                foreach (var (_, paramDestino) in mapping)
                 {
-                    if (kvp.Value.StartsWith("+"))
-                        continue;
-                    if (!parametrosEsperados.Contains(kvp.Value, StringComparer.OrdinalIgnoreCase))
+                    if (paramDestino.StartsWith("+")) continue;
+
+                    if (!parametrosEsperados.Contains(
+                            paramDestino, StringComparer.OrdinalIgnoreCase))
                     {
                         throw new FormatException(
-                            $"El parámetro de destino '{kvp.Value}' no se encuentra entre los parámetros esperados.");
+                            $"El parámetro de destino «{paramDestino}» " +
+                            $"no está entre los esperados.");
                     }
                 }
             }
@@ -64,91 +47,156 @@ namespace SPOrchestratorAPI.Helpers
         }
 
         /// <summary>
-        /// Transforma el resultado de un servicio en un diccionario de parámetros para la continuación,
-        /// aplicando la cadena de mapeo definida.
-        /// 
-        /// El método espera que <paramref name="result"/> sea un objeto que permita acceder a sus valores
-        /// mediante propiedades o que sea un <see cref="IDictionary{string, object}"/>.
+        /// Parsea la cadena de mapeo (<c>"Campo=Param;Otro=OtroParam"</c>)
+        /// a un diccionario clave→valor.
         /// </summary>
-        /// <param name="result">El resultado obtenido del servicio previo.</param>
-        /// <param name="mappingString">
-        /// La cadena de mapeo que define la transformación, con el formato:
-        /// "CampoResultado=ParametroContinuacion;OtroCampo=OtroParametro".
-        /// Se permiten valores fijos usando el prefijo '+' en el lado de la clave.
-        /// </param>
-        /// <param name="serviceName">
-        /// (Opcional) El nombre del servicio en ejecución, para incluirlo en el mensaje de error.
-        /// </param>
-        /// <returns>
-        /// Un diccionario donde la clave es el nombre del parámetro de continuación y el valor es obtenido
-        /// desde <paramref name="result"/> o es un valor fijo.
-        /// </returns>
-        /// <exception cref="FormatException">
-        /// Se lanza si no se encuentra la propiedad esperada en el resultado.
-        /// </exception>
-        public static IDictionary<string, object> TransformarResultado(object result, string mappingString,
-            string serviceName = "el servicio")
+        /// <exception cref="FormatException">Formato incorrecto.</exception>
+        public static IDictionary<string, string> ParseMapping(string mappingString)
         {
-            var mapping = ParseMapping(mappingString);
-            var output = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            var extractor = new JsonExtractor(); // Usamos nuestro extractor de JSON
+            if (string.IsNullOrWhiteSpace(mappingString))
+                throw new FormatException("La cadena de mapeo no puede estar vacía.");
 
-            foreach (var kvp in mapping)
+            return mappingString
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .ToDictionary(
+                    p => p.Split('=')[0].Trim(),
+                    p => p.Split('=')[1].Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        #endregion
+
+        #region Transform
+        /// <summary>
+        /// Aplica el mapeo sobre <paramref name="result"/> devolviendo el
+        /// diccionario de parámetros para la continuación.
+        /// </summary>
+        /// <param name="result">Resultado del servicio anterior.</param>
+        /// <param name="mappingString">Cadena de mapeo.</param>
+        /// <param name="serviceName">Nombre del servicio actual (solo logging).</param>
+        /// <param name="logger">
+        ///   (Opcional) Logger para trazas; se recomienda pasar desde el
+        ///   middleware reactivo para <c>Debug</c>/<c>Warning</c>.
+        /// </param>
+        /// <exception cref="FormatException">
+        /// Se lanza si algún campo no se encuentra.
+        /// </exception>
+        public static IDictionary<string, object> TransformarResultado(
+            object result,
+            string mappingString,
+            string serviceName = "el servicio",
+            ILogger? logger = null)
+        {
+            // LOG:
+            logger?.LogDebug("⤷ TransformarResultado ({Service}) → {Mapping}",
+                             serviceName, mappingString);
+
+            var mapping = ParseMapping(mappingString);
+            var output  = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            var extractor = new JsonExtractor();
+
+            foreach (var (sourceKey, targetParam) in mapping)
             {
-                string sourceKey = kvp.Key;
-                string targetParam = kvp.Value;
                 object? value = null;
-                if (sourceKey.StartsWith("+"))
+
+                if (sourceKey.StartsWith("+"))                          // valor fijo
                 {
-                    value = sourceKey.Substring(1);
+                    value = sourceKey[1..];
+                }
+                else if (sourceKey.StartsWith("$") || sourceKey.Contains("["))   // JSONPath
+                {
+                    var json = result is string s ? s : JsonSerializer.Serialize(result);
+                    value = extractor.ExtraerValor(json, sourceKey);
                 }
                 else
                 {
-                    // Si el sourceKey parece ser una ruta JSONPath (por ejemplo, comienza con '$' o contiene [*])
-                    if (sourceKey.StartsWith("$") || sourceKey.Contains("["))
-                    {
-                        // Se espera que el 'result' sea un JSON en string
-                        string json = result is string
-                            ? (string)result
-                            : System.Text.Json.JsonSerializer.Serialize(result);
-                        value = extractor.ExtraerValor(json, sourceKey);
-                        if (value == null)
-                        {
-                            throw new FormatException(
-                                $"No se encontró la ruta JSONPath '{sourceKey}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
-                        }
-                    }
-                    else
-                    {
-                        if (result is IDictionary<string, object> dict)
-                        {
-                            if (!dict.TryGetValue(sourceKey, out value))
-                            {
-                                throw new FormatException(
-                                    $"No se encontró la propiedad esperada '{targetParam}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
-                            }
-                        }
-                        else
-                        {
-                            PropertyInfo? prop = result.GetType().GetProperty(sourceKey,
-                                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                            if (prop != null)
-                            {
-                                value = prop.GetValue(result);
-                            }
-                            else
-                            {
-                                throw new FormatException(
-                                    $"No se encontró la propiedad esperada '{targetParam}' en el resultado del servicio '{serviceName}'. Combinación esperada: {sourceKey}={targetParam}.");
-                            }
-                        }
-                    }
+                    value = ResolveFromKnownStructures(result, sourceKey);
                 }
 
-                output[targetParam] = value!;
+                if (value is null)
+                {
+                    throw new FormatException(
+                        $"No se encontró la propiedad esperada «{targetParam}» " +
+                        $"en el resultado del servicio «{serviceName}». " +
+                        $"Combinación esperada: {sourceKey}={targetParam}.");
+                }
+
+                output[targetParam] = value;
             }
+
+            // LOG:
+            logger?.LogDebug("⤷ Transform final ({Service}) → {Payload}",
+                             serviceName, output);
 
             return output;
         }
+        #endregion
+
+        #region Private helpers
+        private static object? ResolveFromKnownStructures(object result, string sourceKey)
+        {
+            
+            if (result is string jsonTxt)
+            {
+                var trim = jsonTxt.TrimStart();
+                if (trim.StartsWith("{") || trim.StartsWith("["))
+                {
+                    using var doc = JsonDocument.Parse(trim);
+                    var element = trim.StartsWith("{")
+                        ? doc.RootElement
+                        : doc.RootElement.ValueKind == JsonValueKind.Array &&
+                          doc.RootElement.GetArrayLength() > 0
+                              ? doc.RootElement[0]
+                              : default;
+
+                    if (element.ValueKind != JsonValueKind.Undefined)
+                        return TryGet(element, sourceKey);
+                }
+            }
+
+            // 2) JsonElement ------------------------------
+            if (result is JsonElement je && je.ValueKind == JsonValueKind.Object)
+                return TryGet(je, sourceKey);
+
+            // 3) IDictionary<string, object> --------------
+            if (result is IDictionary<string, object> dict &&
+                dict.TryGetValue(sourceKey, out var valDict))
+                return valDict;
+
+            // 4) Reflexión --------------------------------
+            var prop = result.GetType().GetProperty(
+                           sourceKey,
+                           BindingFlags.Public | BindingFlags.Instance |
+                           BindingFlags.IgnoreCase);
+            return prop?.GetValue(result);
+        }
+
+        /// <summary>
+        /// Busca de forma case-insensitive una propiedad en un
+        /// <see cref="JsonElement"/> de tipo objeto.
+        /// </summary>
+        private static object? TryGet(JsonElement element, string propName)
+        {
+            foreach (var p in element.EnumerateObject())
+            {
+                if (p.NameEquals(propName) ||
+                    p.Name.Equals(propName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return p.Value.ValueKind switch
+                    {
+                        JsonValueKind.Number => p.Value.TryGetInt64(out var l) ? l :
+                                                p.Value.TryGetDecimal(out var d) ? d :
+                                                p.Value.GetDouble(),
+                        JsonValueKind.True   => true,
+                        JsonValueKind.False  => false,
+                        JsonValueKind.String => p.Value.GetString()!,
+                        JsonValueKind.Null   => null,
+                        _ => p.Value.ToString()
+                    };
+                }
+            }
+            return null;
+        }
+        #endregion
     }
 }

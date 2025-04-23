@@ -1,4 +1,5 @@
 ﻿using System.Reactive.Linq;
+using System.Text.Json;
 using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.Entities;
@@ -164,24 +165,45 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                         parentResult, map.CamposRelacion, parentService);
 
                     return Observable.FromAsync(async () =>
-                    {
-                        var exec = new ServicioEjecucion
                         {
-                            ServicioId                        = nextCfg.Servicio.Id,
-                            ServicioConfiguracionId           = nextCfg.Id,
-                            ServicioEjecucionDesencadenadorId = parentExecId,
-                            FechaEjecucion                    = DateTime.UtcNow,
-                            Estado                            = true,
-                            Parametros                        = System.Text.Json.JsonSerializer.Serialize(nextParams)
-                        };
-                        exec = await auditoriaService.RegistrarEjecucionAsync(exec);
+                            try
+                            {
+                                var res = await spService
+                                    .EjecutarPorNombreAsync(nextService, nextParams, skipAudit: true)
+                                    .FirstAsync();
 
-                        var res = await spService
-                            .EjecutarPorNombreAsync(nextService, nextParams, skipAudit: true)
-                            .FirstAsync();
+                                var execOk = new ServicioEjecucion
+                                {
+                                    ServicioId                        = nextCfg.Servicio.Id,
+                                    ServicioConfiguracionId           = nextCfg.Id,
+                                    ServicioEjecucionDesencadenadorId = parentExecId,
+                                    FechaEjecucion                    = DateTime.UtcNow,
+                                    Estado                            = true,
+                                    Parametros = System.Text.Json.JsonSerializer.Serialize(nextParams),
+                                    Resultado  = System.Text.Json.JsonSerializer.Serialize(res)
+                                };
+                                execOk = await auditoriaService.RegistrarEjecucionAsync(execOk);
 
-                        return (nextService, res, exec.Id);
-                    })
+                                return (nextService, (object)res, execOk.Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                var execErr = new ServicioEjecucion
+                                {
+                                    ServicioId                        = nextCfg.Servicio.Id,
+                                    ServicioConfiguracionId           = nextCfg.Id,
+                                    ServicioEjecucionDesencadenadorId = parentExecId,
+                                    FechaEjecucion                    = DateTime.UtcNow,
+                                    Estado        = false,
+                                    MensajeError  = ex.Message,
+                                    Parametros    = System.Text.Json.JsonSerializer.Serialize(nextParams),
+                                    Resultado     = null
+                                };
+                                execErr = await auditoriaService.RegistrarEjecucionAsync(execErr);
+
+                                throw; 
+                            }
+                        })
                     .SelectMany(tuple =>
                     {
                         var (srv, res, execId) = tuple;
@@ -191,7 +213,7 @@ namespace SPOrchestratorAPI.Services.ChainOrchestratorServices
                                       srv,
                                       item,
                                       execId,
-                                      new HashSet<string>(visited)))   // ← copia
+                                      new HashSet<string>(visited)))   
                             : ContinueRecursively(srv, res, execId, visited);
                     });
                 });
