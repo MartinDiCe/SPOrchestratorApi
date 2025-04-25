@@ -190,6 +190,8 @@ if (app.Environment.IsDevelopment())
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
 
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseMiddleware<ApiTraceMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
