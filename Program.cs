@@ -3,6 +3,7 @@ using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SPOrchestratorAPI.Admin;
 using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Examples;
@@ -93,6 +94,8 @@ builder.Services.AddHttpContextAccessor();
 // 5) Repositorios y servicios de aplicación
 // ---------------------------------------------------------
 builder.Services.AddSingleton<IRecurringJobRegistrar, RecurringJobRegistrar>();
+builder.Services.AddScoped<IHangfireJobService, HangfireJobService>();
+
 
 builder.Services.AddScoped<IServiceExecutor, ReactiveServiceExecutor>();
 builder.Services.AddScoped<AuditEntitiesService>();
@@ -154,11 +157,17 @@ var app = builder.Build();
 // ---------------------------------------------------------
 // 7) Dashboard de Hangfire (UI)
 // ---------------------------------------------------------
-app.UseHangfireDashboard("/hangfire");
+app.UseHangfireDashboard(
+    pathMatch: "/hangfire");
 
 // ---------------------------------------------------------
-// 8) Registrar / refrescar todos los recurring jobs
+// 8) Limpiar / Registrar / refrescar todos los recurring jobs
 // ---------------------------------------------------------
+await HangfireJobsInitializer.CleanUnscheduledJobsAsync(
+    app.Services,
+    app.Services.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("HangfireJobsInitializer"));
+
 using (var scope = app.Services.CreateScope())
 {
     scope.ServiceProvider
