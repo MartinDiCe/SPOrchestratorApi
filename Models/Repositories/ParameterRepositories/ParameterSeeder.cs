@@ -81,7 +81,7 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
 
                 await parameterRepository.CreateAsync(newRefreshCron);
             }
-            
+
             const string hangfireEnabledName = "HangfireEnabled";
             var hangfireEnabled = await parameterRepository.GetByNameAsync(hangfireEnabledName);
             if (hangfireEnabled == null)
@@ -97,7 +97,7 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
                 };
                 await parameterRepository.CreateAsync(newHangfireEnabled);
             }
-            
+
             const string swaggerEnabledName = "SwaggerEnabled";
             var swaggerEnabled = await parameterRepository.GetByNameAsync(swaggerEnabledName);
             if (swaggerEnabled == null)
@@ -114,6 +114,22 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
                 await parameterRepository.CreateAsync(newSwaggerEnabled);
             }
             
+            const string newRelicKeyName = "NewRelicLicenseKey";
+            var nrParam = await parameterRepository.GetByNameAsync(newRelicKeyName);
+            if (nrParam == null)
+            {
+                var newNrParam = new Parameter
+                {
+                    ParameterName = newRelicKeyName,
+                    ParameterValue = "",
+                    ParameterDescription = "New Relic license key",
+                    ParameterCategory = "Observability",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                };
+
+                await parameterRepository.CreateAsync(newNrParam);
+            }
         }
     }
 }

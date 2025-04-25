@@ -40,6 +40,9 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------------------------------------------------------
 builder.Services.AddHangfireServices(builder.Configuration);
 
+// Configurar NewRelic
+builder.AddNewRelicLicenseFromDatabase();
+
 // ---------------------------------------------------------
 // 1) Servicios básicos (Controllers, Swagger, ModelValidation)
 // ---------------------------------------------------------
@@ -51,6 +54,9 @@ builder.Services.Configure<ApiBehaviorOptions>(opts =>
     opts.InvalidModelStateResponseFactory =
         context => ModelValidationResponseFactory.CustomResponse(context.ModelState)
 );
+
+//Levantar Logs New Relic
+LoggingConfigurator.Configure(builder);
 
 // ---------------------------------------------------------
 // 2) EF Core DbContext
@@ -109,6 +115,7 @@ builder.Services.AddMemoryCache();
 if (builder.Environment.IsProduction())
 {
     builder.Logging.ClearProviders();
+    
 }
 else
 {
