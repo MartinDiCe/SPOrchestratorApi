@@ -81,6 +81,39 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
 
                 await parameterRepository.CreateAsync(newRefreshCron);
             }
+            
+            const string hangfireEnabledName = "HangfireEnabled";
+            var hangfireEnabled = await parameterRepository.GetByNameAsync(hangfireEnabledName);
+            if (hangfireEnabled == null)
+            {
+                var newHangfireEnabled = new Parameter
+                {
+                    ParameterName = hangfireEnabledName,
+                    ParameterValue = "true",
+                    ParameterDescription = "Determina si se habilita Hangfire (dashboard y jobs)",
+                    ParameterCategory = "Hangfire",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                };
+                await parameterRepository.CreateAsync(newHangfireEnabled);
+            }
+            
+            const string swaggerEnabledName = "SwaggerEnabled";
+            var swaggerEnabled = await parameterRepository.GetByNameAsync(swaggerEnabledName);
+            if (swaggerEnabled == null)
+            {
+                var newSwaggerEnabled = new Parameter
+                {
+                    ParameterName = swaggerEnabledName,
+                    ParameterValue = "true",
+                    ParameterDescription = "Determina si se habilita Swagger/OpenAPI UI",
+                    ParameterCategory = "Swagger",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                };
+                await parameterRepository.CreateAsync(newSwaggerEnabled);
+            }
+            
         }
     }
 }
