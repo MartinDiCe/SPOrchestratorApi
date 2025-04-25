@@ -1,98 +1,79 @@
 ﻿using Hangfire;
-using SPOrchestratorAPI.Services.ServicioProgramacionServices;
-using SPOrchestratorAPI.Services.SPOrchestratorServices;
+using Hangfire.Common;
+using Hangfire.Storage;
+using SPOrchestratorAPI.Services.ServicioConfiguracionServices;
+using System.Reactive.Linq;
 
-namespace SPOrchestratorAPI.Configuration
+namespace SPOrchestratorAPI.Configuration;
+
+/// <summary>
+///     Utilidades de limpieza y sincronización para los artefactos de Hangfire
+///     (<c>recurring-jobs</c>, jobs encolados, planificados o en ejecución).
+/// </summary>
+public static class HangfireJobsInitializer
 {
+    private const string PREFIX = "Orquestador-";
+
     /// <summary>
-    /// Clase encargada de registrar los Recurring Jobs de Hangfire
-    /// usando un enfoque 100% reactivo (sin bloqueo).
+    /// Elimina de Hangfire cualquier job asociado a un <c>cfgId</c> cuyo
+    /// <c>EsProgramado</c> sea <see langword="false"/>.
     /// </summary>
-    public class HangfireJobsInitializer
+    public static async Task CleanUnscheduledJobsAsync(
+        IServiceProvider sp,
+        ILogger logger)
     {
-        /// <summary>
-        /// Registra la suscripción reactiva que, al obtener las programaciones,
-        /// crea los Recurring Jobs en Hangfire.
-        /// </summary>
-        /// <param name="app">Referencia a la aplicación para obtener servicios por DI.</param>
-        public static void RegisterRecurringJobsReactively(WebApplication app)
+        using var scope   = sp.CreateScope();
+        var cfgSvc        = scope.ServiceProvider.GetRequiredService<IServicioConfiguracionService>();
+
+        var monitor    = JobStorage.Current.GetMonitoringApi();
+        var connection = JobStorage.Current.GetConnection();   // ← para recurring
+        
+        var cfgActivas = (await cfgSvc.GetAllAsync().FirstAsync())
+                         .Where(c => c.EsProgramado)
+                         .Select(c => c.Id)
+                         .ToHashSet();
+        
+        foreach (var rec in connection.GetRecurringJobs())
         {
-            // Creamos un scope para inyectar nuestros servicios
-            using var scope = app.Services.CreateScope();
+            var id = rec.Id;                                   
+            if (!id.StartsWith(PREFIX, StringComparison.OrdinalIgnoreCase))
+                continue;
 
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<HangfireJobsInitializer>>();
-            var programacionService = scope.ServiceProvider.GetRequiredService<IServicioProgramacionService>();
-            var scheduledOrchestrator  = scope.ServiceProvider.GetRequiredService<IScheduledOrchestratorService>();
+            var segs = id.Split('-');
+            if (!int.TryParse(segs[^1], out var cfgId) || cfgActivas.Contains(cfgId))
+                continue;                                       // sigue válido → no tocar
 
-            // Nos suscribimos de forma 100% reactiva a la obtención de programaciones
-            programacionService.GetAllAsync()
-                .Subscribe(
-                    programaciones =>
-                    {
-                        if (programaciones == null || programaciones.Count == 0)
-                        {
-                            logger.LogInformation("No se encontraron programaciones en la base de datos.");
-                            return;
-                        }
+            RecurringJob.RemoveIfExists(id);
+            logger.LogInformation("🗑 RecurringJob '{Id}' eliminado (cfgId={Cfg})", id, cfgId);
+        }
+        
+        CleanList(monitor.ScheduledJobs (0, int.MaxValue), cfgActivas, logger);
+        CleanList(monitor.ProcessingJobs(0, int.MaxValue), cfgActivas, logger);
 
-                        foreach (var prog in programaciones)
-                        {
-                            var config = prog.ServicioConfiguracion;
-                            if (!config.EsProgramado)
-                            {
-                                logger.LogInformation(
-                                    "El ServicioConfiguracionId={ConfigId} no está marcado como programado, se ignora.",
-                                    config.Id
-                                );
-                                continue;
-                            }
+        foreach (var q in monitor.Queues())
+        {
+            var perPage = q.Length > int.MaxValue ? int.MaxValue : (int)q.Length;
+            CleanList(monitor.EnqueuedJobs(q.Name, 0, perPage), cfgActivas, logger);
+        }
+    }
+    
+    private static void CleanList<TDto>(
+        IEnumerable<KeyValuePair<string, TDto>> lote,
+        HashSet<int> cfgActivas,
+        ILogger log)
+    {
+        foreach (var (jobId, dto) in lote)
+        {
+            dynamic d   = dto!;
+            var     job = d.Job as Job;
 
-                            if (string.IsNullOrWhiteSpace(prog.CronExpression))
-                            {
-                                logger.LogError(
-                                    "ServicioProgramacionId={ProgId} no tiene CRON expression. Se omite la programación.",
-                                    prog.Id
-                                );
-                                continue;
-                            }
+            if (job?.Args?.Count < 2) continue;
 
-                            // Si deseas verificar EndDate (para no crear un job si ya expiró)
-                            if (prog.EndDate != default && prog.EndDate < DateTime.UtcNow)
-                            {
-                                logger.LogInformation(
-                                    "La programación {ProgId} expiró en {EndDate}. No se registrará en Hangfire.",
-                                    prog.Id, prog.EndDate
-                                );
-                                continue;
-                            }
-
-                            // Creamos un ID único para el job
-                            var jobId = $"SC-{config.Id}";
-
-                            // Registramos un Recurring Job en Hangfire
-                            RecurringJob.AddOrUpdate(
-                                recurringJobId: jobId,
-                                methodCall: () => scheduledOrchestrator.EjecutarProgramado(config.Id),
-                                cronExpression: prog.CronExpression
-                            );
-
-                            logger.LogInformation(
-                                "Se ha registrado RecurringJob='{JobId}' para ConfigId={ConfigId} con CRON='{Cron}'.",
-                                jobId, config.Id, prog.CronExpression
-                            );
-                        }
-                    },
-                    ex =>
-                    {
-                        // onError: si ocurrió un error al obtener la lista
-                        logger.LogError(ex, "Error al obtener las programaciones para Hangfire.");
-                    },
-                    () =>
-                    {
-                        // onCompleted: si el observable de programaciones se completa
-                        logger.LogInformation("Suscripción de programaciones finalizada (reactiva).");
-                    }
-                );
+            if (job.Args[1] is int cfgId && !cfgActivas.Contains(cfgId))
+            {
+                BackgroundJob.Delete(jobId);
+                log.LogInformation("🗑 Job {Id} eliminado (cfgId={Cfg})", jobId, cfgId);
+            }
         }
     }
 }

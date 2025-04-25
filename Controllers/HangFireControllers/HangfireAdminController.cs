@@ -1,26 +1,24 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SPOrchestratorAPI.Services.HangFireServices;
 
-namespace SPOrchestratorAPI.Controllers.HangFireControllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class HangfireAdminController(
-        IHangfireJobService jobService,
-        ILogger<HangfireAdminController> logger)
-        : ControllerBase
-    {
-        private readonly IHangfireJobService _jobService = jobService;
+namespace SPOrchestratorAPI.Controllers.HangFireControllers;
 
-        /// <summary>
-        /// Endpoint para refrescar todos los recurring jobs.
-        /// </summary>
-        [HttpPost("refresh-jobs")]
-        public IActionResult RefreshJobs()
-        {
-            logger.LogInformation("Petición recibida: refrescar recurring jobs");
-            _jobService.RefreshAllRecurringJobs();
-            return Ok(new { mensaje = "Recurring jobs refrescados correctamente." });
-        }
+[ApiController]
+[Route("api/[controller]")]
+public class HangfireAdminController(
+    IHangfireJobService jobs,
+    ILogger<HangfireAdminController> log)
+    : ControllerBase
+{
+    private readonly IHangfireJobService           _jobs = jobs  ?? throw new ArgumentNullException(nameof(jobs));
+    private readonly ILogger<HangfireAdminController> _log = log   ?? throw new ArgumentNullException(nameof(log));
+
+    /// <summary>Refresca todos los recurring jobs de Hangfire.</summary>
+    [HttpPost("refresh-jobs")]
+    public IActionResult RefreshJobs()
+    {
+        _log.LogInformation("🔄 Petición de refresco de recurring jobs");
+        _jobs.RefreshAllRecurringJobs();
+        return Ok(new { mensaje = "Recurring jobs refrescados correctamente." });
     }
 }

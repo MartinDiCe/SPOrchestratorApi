@@ -1,15 +1,13 @@
 ﻿namespace SPOrchestratorAPI.Services.HangFireServices;
 
 /// <summary>
-/// Interfaz para la gestión de recurring jobs de Hangfire,
-/// permite refrescar el registro de jobs según la tabla de programación.
+/// Encapsula la lógica de “sincronizar & registrar” los jobs de Hangfire.
 /// </summary>
 public interface IHangfireJobService
 {
-    /// <summary>
-    /// Elimina y registra nuevamente todos los recurring jobs
-    /// basados en ServicioProgramacion.
-    /// </summary>
+    /// <remarks>
+    /// 1. Elimina todo lo que ya no esté programado  
+    /// 2. Vuelve a registrar los jobs válidos
+    /// </remarks>
     void RefreshAllRecurringJobs();
-    
 }
