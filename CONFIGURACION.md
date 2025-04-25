@@ -2,15 +2,15 @@
 
 ## 1 · Portada & datos básicos
 
-| Elemento                           | Valor                                                                                                                                                                                               |
-|------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Versión mínima**                 | .NET 8 · SQL Server 2019 · Docker                                                                                                                                                                   |
-| **Imagen oficial**                 | `mdiceprojects/sporchestratorapi:latest`                                                                                                                                                            |
-| **Lanzar en un minuto Producción** | ```bash docker run -d -p 9000:80 --name sporchestratorapi --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi:latest```    |
-| **Lanzar en un minuto Desarrollo** | ```bash docker run -d -p 9001:80 --name sporchestratorapiQA --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi:latest``` |
-| **Swagger UI**                     | `https://<DOMINIO>/swagger/index.html`                                                                                                                                                              |
-| **Hangfire dashboard**             | `https://<DOMINIO>/hangfire`                                                                                                                                                                        |
-| **Repositorio**                    | <https://github.com/MartinDiCe/SPOrchestratorApi>                                                                                                                                                   |
+| Elemento                           | Valor                                                                                                                                                                                                                               |
+|------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Versión mínima**                 | .NET 8 · SQL Server 2019 · Docker                                                                                                                                                                                                   |
+| **Imagen oficial**                 | `mdiceprojects/sporchestratorapi:latest`                                                                                                                                                                                            |
+| **Lanzar en un minuto Producción** | ```bash docker run -d -p 9000:80 --name sporchestratorapi --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:80 -e NEWRELIC_LICENSE_KEY=YourApiKey mdiceprojects/sporchestratorapi:latest``` |
+| **Lanzar en un minuto Desarrollo** | ```bash docker run -d -p 9001:80 --name sporchestratorapiQA --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 NEWRELIC_LICENSE_KEY=YourApiKey mdiceprojects/sporchestratorapi:latest``` |
+| **Swagger UI**                     | `https://<DOMINIO>/swagger/index.html`                                                                                                                                                                                              |
+| **Hangfire dashboard**             | `https://<DOMINIO>/hangfire`                                                                                                                                                                                                        |
+| **Repositorio**                    | <https://github.com/MartinDiCe/SPOrchestratorApi>                                                                                                                                                                                   |
 
 ---
 
@@ -165,13 +165,15 @@ Variables de entorno más usadas:
 
 * Tabla completa de endpoints (autogenerada por Swagger).
 * Ejemplos avanzados de mapeo *continue‑with*.
-* Errores comunes y cómo solucionarlos.
-* Roadmap: próximos conectores (Kafka, gRPC…).
+* Errores comunes y cómo solucionarlos en un faq generico.
+* Roadmap: próximos conectores (Kafka y gRPC).
 
 ## 8 · Consideraciones
 
 * Validar tabla parameters para activar o desactivar parametros de configuración.
 * Recordar uso de configuración de EndPoints es muy distinto de StoreProcedures o VistaSQL que dependen de una base de datos, mientras que el otro del JSONConfig.
 * Para reiniciar la Aplicación: POST /api/Admin/restart
+* Para monitoreo usamos New Relic, no olvide configurar su APIKey en la tabla parametros.
+
 ---
 
