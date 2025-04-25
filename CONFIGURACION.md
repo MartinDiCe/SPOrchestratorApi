@@ -21,7 +21,7 @@
 * Desplegar SP/vistas como servicios REST.
 * Encadenar pasos (*continue-with*) y pasar parámetros vía JSON/JSONPath.
 * Programar ejecuciones con CRON y auditar cada resultado en la base.
-* Mezclar orígenes — un SP puede disparar un endpoint, etc.
+* Mezclar orígenes — un SP puede disparar un endpoint, un endpoint una vista, etc.
 
 > **Pipeline general**  
 > `Request → Validación → Ejecución → (Opc) Continue-With → Auditoría`
@@ -69,7 +69,7 @@ POST /api/ServicioConfiguracion/create
   "esProgramado": true,
   "guardarRegistros": true,
   "continuarCon": true,
-  "jsonConfig": "RequiereApiKey=true;ApiKey=a677YYH99;TipoRequest=GET"
+  "jsonConfig": "RequiereApiKey=true;ApiKey=a677YYH99;TipoRequest=GET" //Si no es EndPoint va null o sin clave - Si viene vacio y es endpoint, por defecto TipoRequest=GET, Si no configurar POST, PUT, DELETED, ETC, y el resto de claves en null.
 }
 ```
 
@@ -101,9 +101,9 @@ POST /api/ServicioContinueWith/create
 POST /api/SpOrchestrator/execute
 {
   "serviceName": "Demo",
-  "parameters": {
+  "parameters": { //sin parametros, no completar enviar null
     "p1": "Texto",
-    "p2": 9599965
+    "p2": 9599965 //si no es requerido enviar null
   },
   "isFile": false        // true = genera CSV descargable
 }
@@ -134,8 +134,10 @@ curl -X POST https://<DOMINIO>/api/HangfireAdmin/refresh-jobs
 2. `RecurringJobRegistrar.RegisterAllJobs` recrea los válidos.
 
 ### Borrar una configuración
-Marcar `Deleted = 1` en `ServicioConfiguracion`.  
-En el próximo *refresh* desaparecerá su job.
+Marcar `Deleted = 1` en `ServicioConfiguracion`. 
+Marcar `EsProgramado = False` en `ServicioConfiguracion`.
+Borrar `ServicioProgramacion`.
+En el próximo *refresh* desaparecerá o no se ejecutará su job.
 
 ### Cambiar CRON
 Solo edita `ServicioProgramacion.CronExpression` → no reinicia.
@@ -166,5 +168,10 @@ Variables de entorno más usadas:
 * Errores comunes y cómo solucionarlos.
 * Roadmap: próximos conectores (Kafka, gRPC…).
 
+## 8 · Consideraciones
+
+* Validar tabla parameters para activar o desactivar parametros de configuración.
+* Recordar uso de configuración de EndPoints es muy distinto de StoreProcedures o VistaSQL que dependen de una base de datos, mientras que el otro del JSONConfig.
+* Para reiniciar la Aplicación: POST /api/Admin/restart
 ---
 
