@@ -17,11 +17,11 @@ RUN dotnet publish "SPOrchestratorAPI.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Instala dependencias para New Relic .NET agent, lo descarga e instala
+# Instala wget/unzip y descarga el .tar.gz correcto del agente .NET de New Relic
 RUN apt-get update && apt-get install -y wget unzip \
-    && wget https://download.newrelic.com/dot_net_agent/latest/linux/newrelic-dotnet-agent-linux.tar.gz \
-    && tar -xzf newrelic-dotnet-agent-linux.tar.gz -C /usr/local \
-    && rm newrelic-dotnet-agent-linux.tar.gz \
+    && wget https://download.newrelic.com/dot_net_agent/latest_release/newrelic-dotnet-agent_amd64.tar.gz \
+    && tar -xzf newrelic-dotnet-agent_amd64.tar.gz -C /usr/local \
+    && rm newrelic-dotnet-agent_amd64.tar.gz \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Variables de entorno necesarias para el CLR profiler de New Relic
