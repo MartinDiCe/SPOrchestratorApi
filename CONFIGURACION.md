@@ -2,14 +2,15 @@
 
 ## 1 · Portada & datos básicos
 
-| Elemento                | Valor                                                                                                                                                                                                    |
-|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Versión mínima**      | .NET 8 · SQL Server 2019 · Docker                                                                                                                                                                        |
-| **Imagen oficial**      | `mdiceprojects/sporchestratorapi:latest`                                                                                                                                                                 |
-| **Lanzar en un minuto** | ```bash<br/>docker run -d -p 9000:80 --name sporchestratorapi \<br/>  -e ASPNETCORE_ENVIRONMENT=Production \<br/>  -e ASPNETCORE_URLS=http://+:80 \<br/>  mdiceprojects/sporchestratorapi:latest<br/>``` |
-| **Swagger UI**          | `https://<DOMINIO>/swagger/index.html`                                                                                                                                                                   |
-| **Hangfire dashboard**  | `https://<DOMINIO>/hangfire`                                                                                                                                                                             |
-| **Repositorio**         | <https://github.com/MartinDiCe/SPOrchestratorApi>                                                                                                                                                        |
+| Elemento                           | Valor                                                                                                                                                                      |
+|------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Versión mínima**                 | .NET 8 · SQL Server 2019 · Docker                                                                                                                                          |
+| **Imagen oficial**                 | `mdiceprojects/sporchestratorapi:latest`                                                                                                                                   |
+| **Lanzar en un minuto Producción** | ```bash docker run -d -p 9000:80 --name sporchestratorapi -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi:latest```    |
+| **Lanzar en un minuto Desarrollo** | ```bash docker run -d -p 9001:80 --name sporchestratorapiQA -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi:latest``` |
+| **Swagger UI**                     | `https://<DOMINIO>/swagger/index.html`                                                                                                                                     |
+| **Hangfire dashboard**             | `https://<DOMINIO>/hangfire`                                                                                                                                               |
+| **Repositorio**                    | <https://github.com/MartinDiCe/SPOrchestratorApi>                                                                                                                          |
 
 ---
 
