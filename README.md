@@ -74,3 +74,8 @@ Smart Process Orchestrator API centraliza y orquesta la ejecución de procesos (
 - Encadenar procesos con flujos "continue with".
 - Configurar ejecuciones programadas mediante expresiones CRON.
 - Registrar cada ejecución para auditoría y trazabilidad.
+
+## Documentación
+
+- 📄 [Guía de configuración](./CONFIGURACION.md)
+
