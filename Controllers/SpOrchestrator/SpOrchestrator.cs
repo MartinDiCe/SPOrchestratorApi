@@ -55,7 +55,6 @@ namespace SPOrchestratorAPI.Controllers.SpOrchestrator
 
             try
             {
-                // Recolecta **todos** los valores emitidos
                 var resultados = await _spService
                     .EjecutarConContinuacionAsync(request.ServiceName, request.Parameters)
                     .ToList();
@@ -77,7 +76,6 @@ namespace SPOrchestratorAPI.Controllers.SpOrchestrator
                     });
                 }
 
-                // Si solo hay uno, lo devuelvo como objeto; si hay varios, como lista
                 return resultados.Count switch
                 {
                     0 => NoContent(),
