@@ -5,71 +5,102 @@ using SPOrchestratorAPI.Exceptions;
 using SPOrchestratorAPI.Helpers;
 using SPOrchestratorAPI.Models.DTOs.StoreProcedureDtos;
 using SPOrchestratorAPI.Services.ChainOrchestratorServices;
+using SPOrchestratorAPI.Services.LoggingServices;
 
 namespace SPOrchestratorAPI.Controllers.SpOrchestrator
 {
     /// <summary>
-    /// Controlador para la ejecución final de stored procedures.
-    /// Se recibe el nombre del servicio y los valores de los parámetros.
-    /// La configuración (nombre del SP, cadena de conexión, proveedor y parámetros esperados)
-    /// se obtiene de la base de datos.
+    /// Controlador para orquestar la ejecución de servicios (SP, vistas, endpoints)
+    /// según la configuración almacenada en BD.
     /// </summary>
     [ApiExplorerSettings(GroupName = "Public")]
     [ApiController]
     [Route("api/[controller]")]
-    public class SpOrchestrator(IChainOrchestratorService spService) : ControllerBase
+    public class SpOrchestrator : ControllerBase
     {
-        private readonly IChainOrchestratorService _spService =
-            spService ?? throw new ArgumentNullException(nameof(spService));
+        private readonly IChainOrchestratorService _spService;
+        private readonly ILoggerService<SpOrchestrator> _logger;
 
         /// <summary>
-        /// Endpoint para ejecutar un stored procedure utilizando la configuración obtenida por el nombre del servicio.
-        /// Se espera que el request incluya el nombre del servicio y el diccionario de parámetros.
+        /// Constructor de <see cref="SpOrchestrator"/>.
         /// </summary>
-        /// <param name="request">DTO que contiene el nombre del servicio y los valores de los parámetros.</param>
+        /// <param name="spService">Servicio que implementa la lógica reactiva de orquestación.</param>
+        /// <param name="logger">Servicio genérico de logging.</param>
+        public SpOrchestrator(
+            IChainOrchestratorService spService,
+            ILoggerService<SpOrchestrator> logger)
+        {
+            _spService = spService
+                ?? throw new ArgumentNullException(nameof(spService));
+            _logger = logger
+                ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <summary>
+        /// Ejecuta un servicio orquestado (SP, vista o endpoint) y devuelve todos los resultados.
+        /// </summary>
+        /// <param name="request">
+        /// DTO con <see cref="StoredProcedureExecutionRequest.ServiceName"/>, 
+        /// <see cref="StoredProcedureExecutionRequest.Parameters"/> e <c>IsFile</c>.
+        /// </param>
         /// <returns>
-        /// En caso de éxito, retorna un 200 OK con el resultado del SP (por ejemplo, un listado de filas en formato JSON).
-        /// En caso de error, retorna un mensaje con el detalle del error.
+        /// Si <c>IsFile==true</c>, un CSV descargable; 
+        /// de lo contrario un 200 OK con el objeto o lista JSON.
         /// </returns>
         [HttpPost("execute")]
-        public async Task<IActionResult> ExecuteSp([FromBody] StoredProcedureExecutionRequest request)
+        public async Task<IActionResult> ExecuteSp(
+            [FromBody] StoredProcedureExecutionRequest request)
         {
+            _logger.LogInfo($"[SpOrchestrator] Inicio ejecución '{request.ServiceName}'");
+
             try
             {
-                var result = await _spService
+                var resultados = await _spService
                     .EjecutarConContinuacionAsync(request.ServiceName, request.Parameters)
-                    .FirstAsync();
+                    .ToList();
+
+                _logger.LogInfo($"[SpOrchestrator] Obtenidos {resultados.Count} resultados");
 
                 if (request.IsFile)
                 {
-                    if (result is List<Dictionary<string, object>> listResult)
+                    if (resultados is List<Dictionary<string, object>> listResult)
                     {
-                        var csvContent = CsvConverter.ConvertToCsv(listResult);
-                        var bytes = Encoding.UTF8.GetBytes(csvContent);
+                        var csv = CsvConverter.ConvertToCsv(listResult);
+                        var bytes = Encoding.UTF8.GetBytes(csv);
                         return File(bytes, "text/csv", "resultado.csv");
                     }
-                    else
+
+                    return BadRequest(new
                     {
-                        return BadRequest(new
-                            { message = "El orquestador no devolvió un contenido adecuado para un archivo." });
-                    }
+                        message = "Contenido no adecuado para archivo."
+                    });
                 }
-                else
+
+                return resultados.Count switch
                 {
-                    return Ok(result);
-                }
+                    0 => NoContent(),
+                    1 => Ok(resultados[0]),
+                    _ => Ok(resultados)
+                };
             }
             catch (ResourceNotFoundException ex)
             {
+                _logger.LogWarning(ex.Message);
                 return NotFound(new { message = ex.Message });
             }
             catch (ArgumentException ex)
             {
+                _logger.LogWarning(ex.Message);
                 return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error en la ejecución del orquestador de procesos.", detail = ex.Message });
+                _logger.LogError($"[SpOrchestrator] Error: {ex.Message}", ex);
+                return StatusCode(500, new
+                {
+                    message = "Error interno en orquestador.",
+                    detail = ex.Message
+                });
             }
         }
     }
