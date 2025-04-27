@@ -40,8 +40,6 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------------------------------------------------------
 builder.Services.AddHangfireServices(builder.Configuration);
 
-// Configurar NewRelic
-builder.AddNewRelicLicenseFromDatabase();
 
 // ---------------------------------------------------------
 // 1) Servicios básicos (Controllers, Swagger, ModelValidation)
@@ -54,9 +52,6 @@ builder.Services.Configure<ApiBehaviorOptions>(opts =>
     opts.InvalidModelStateResponseFactory =
         context => ModelValidationResponseFactory.CustomResponse(context.ModelState)
 );
-
-//Levantar Logs New Relic
-LoggingConfigurator.Configure(builder);
 
 // ---------------------------------------------------------
 // 2) EF Core DbContext
@@ -108,6 +103,11 @@ builder.Services.AddHttpClient<IEndpointService, EndpointService>();
 
 builder.Services.AddSwaggerExamplesFromAssemblyOf<StoredProcedureExecutionRequestMultipleExamples>();
 builder.Services.AddMemoryCache();
+
+// ---------------------------------------------------------
+// 4.1) New Relic: solo si 'newRelicEnabled' == "true"
+// ---------------------------------------------------------
+builder.AddNewRelicIfEnabled();
 
 // ---------------------------------------------------------
 // 5) Logging condicional (Hangfire filters, etc.)

@@ -114,6 +114,23 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
                 await parameterRepository.CreateAsync(newSwaggerEnabled);
             }
             
+            const string newRelicEnabledName = "newRelicEnabled";
+            var newRelicEnabled = await parameterRepository.GetByNameAsync(newRelicEnabledName);
+            if (newRelicEnabled == null)
+            {
+                var newNewRelicEnabledName = new Parameter
+                {
+                    ParameterName = newRelicEnabledName,
+                    ParameterValue = "true",
+                    ParameterDescription = "New Relic license key",
+                    ParameterCategory = "Observability",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                };
+
+                await parameterRepository.CreateAsync(newNewRelicEnabledName);
+            }
+            
             const string newRelicKeyName = "NewRelicLicenseKey";
             var nrParam = await parameterRepository.GetByNameAsync(newRelicKeyName);
             if (nrParam == null)
@@ -130,6 +147,7 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
 
                 await parameterRepository.CreateAsync(newNrParam);
             }
+            
         }
     }
 }
