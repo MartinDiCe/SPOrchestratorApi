@@ -1,8 +1,4 @@
-﻿using System;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Hangfire;
+﻿using Hangfire;
 using Hangfire.SqlServer;
 
 namespace SPOrchestratorAPI.Configuration
