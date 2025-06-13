@@ -1,65 +1,75 @@
 ﻿namespace SPOrchestratorAPI.Helpers
 {
+    /// <summary>
+    /// Helper para validar y parsear la configuración de endpoints.
+    /// Permite claves: RequiereApiKey, ApiKey, TipoRequest y AuthScheme.
+    /// </summary>
     public static class EndpointConfigHelper
     {
-        
-        private static readonly HashSet<string> ClavesPermitidas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> ClavesPermitidas = new(StringComparer.OrdinalIgnoreCase)
         {
             "RequiereApiKey",
             "ApiKey",
-            "TipoRequest"
+            "TipoRequest",
+            "AuthScheme"
         };
 
         /// <summary>
         /// Valida y parsea la cadena de configuración para un endpoint.
-        /// La cadena debe tener el formato: "clave1=valor1;clave2=valor2;..."
-        /// Solo se permitirán las claves definidas en ClavesPermitidas.
         /// </summary>
-        /// <param name="configString">La cadena de configuración a validar.</param>
-        /// <returns>Un diccionario con los pares clave/valor.</returns>
+        /// <param name="configString">
+        /// Cadena con pares "clave=valor" separados por ';'.
+        /// </param>
+        /// <param name="logger">
+        /// Logger opcional para trazas. Si se proporciona, registrará la configuración parseada.
+        /// </param>
+        /// <returns>Diccionario inmutable con la configuración.</returns>
         /// <exception cref="FormatException">
-        /// Se lanza si se encuentra una clave no permitida o si el formato es incorrecto.
+        /// Si la cadena está vacía, el formato es incorrecto o aparecen claves no permitidas.
         /// </exception>
-        public static IDictionary<string, string> ParseAndValidateConfig(string configString)
+        public static IReadOnlyDictionary<string, string> ParseAndValidateConfig(
+            string configString,
+            ILogger logger = null)
         {
             if (string.IsNullOrWhiteSpace(configString))
-            {
-                throw new FormatException("La cadena de configuración no puede estar vacía. Formato esperado: clave1=valor1;clave2=valor2;...");
-            }
+                throw new FormatException(
+                    "La cadena de configuración no puede estar vacía. " +
+                    "Formato esperado: clave1=valor1;clave2=valor2;...");
 
-            var pairs = configString.Split(';')
-                .Where(p => !string.IsNullOrWhiteSpace(p))
+            // Separar y limpiar entradas
+            var entries = configString
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
                 .Select(p => p.Trim())
+                .Where(p => p.Length > 0)
                 .ToList();
 
-            var config = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var pair in pairs)
+            // Parsear a diccionario mutable
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entries)
             {
-                var parts = pair.Split('=');
-                if (parts.Length != 2)
-                {
-                    throw new FormatException($"El par '{pair}' no está en el formato correcto. Se esperaba 'clave=valor'. Formato esperado: clave1=valor1;clave2=valor2;...");
-                }
+                var parts = entry.Split('=', 2);
+                if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[1]))
+                    throw new FormatException(
+                        $"Par inválido '{entry}'. Debe ser 'clave=valor'.");
 
-                string key = parts[0].Trim();
-                string value = parts[1].Trim();
-
-                if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value))
-                {
-                    throw new FormatException($"El par '{pair}' contiene clave o valor vacío. Formato esperado: clave1=valor1;clave2=valor2;...");
-                }
+                var key = parts[0].Trim();
+                var value = parts[1].Trim();
 
                 if (!ClavesPermitidas.Contains(key))
                 {
-                    string clavesValidas = string.Join(", ", ClavesPermitidas);
-                    throw new FormatException($"La clave '{key}' no es válida. Claves permitidas: {clavesValidas}. Formato esperado: clave1=valor1;clave2=valor2;...");
+                    var validas = string.Join(", ", ClavesPermitidas);
+                    throw new FormatException(
+                        $"La clave '{key}' no es válida. Claves permitidas: {validas}.");
                 }
 
-                config[key] = value;
+                dict[key] = value;
             }
 
-            return config;
+            // Debug log
+            logger?.LogDebug("Configuración parseada: {@Config}", dict);
+
+            // Retornamos copia inmutable
+            return new Dictionary<string, string>(dict);
         }
     }
 }

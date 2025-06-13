@@ -107,9 +107,33 @@ namespace SPOrchestratorAPI.Services.EndpointServices
                     
                     if (requiereApiKey)
                     {
-                        request.Headers.Add("ApiKey", apiKey);
+                        // Sacamos AuthScheme (por defecto ApiKey)
+                        var authScheme = endpointConfig.TryGetValue("AuthScheme", out var s)
+                            ? s
+                            : "ApiKey";
+
+                        if (authScheme.Equals("ApiKey", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Legacy: header custom “ApiKey”
+                            request.Headers.Add("ApiKey", apiKey);
+                        }
+                        else
+                        {
+                            // Cualquier otro esquema usa Authorization:<Scheme> <token>
+                            request.Headers.Authorization =
+                                new System.Net.Http.Headers.AuthenticationHeaderValue(
+                                    authScheme, 
+                                    apiKey);
+                        }
                     }
 
+                    // 3) Logeamos manualmente los headers actuales
+                    var headersString = string.Join("; ",
+                        request.Headers
+                            .Select(h => $"{h.Key}=[{string.Join(",", h.Value)}]"));
+
+                    _logger.LogInfo($"Headers de la petición a {request.RequestUri}: {headersString}");
+                    
                     if (tipoRequest == "GET")
                     {
                         var queryString = string.Join("&", convertedParams.Select(kvp =>
