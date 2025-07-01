@@ -106,5 +106,15 @@ namespace SPOrchestratorAPI.Services.ParameterServices
                 return Observable.FromAsync(() => _parameterRepository.GetByNameAsync(parameterName));
             });
         }
+        
+        /// <inheritdoc />
+        public async IAsyncEnumerable<Parameter> GetAllAsync()
+        {
+            await foreach (var param in _parameterRepository.GetAllAsync())
+            {
+                yield return param;
+            }
+        }
+        
     }
 }

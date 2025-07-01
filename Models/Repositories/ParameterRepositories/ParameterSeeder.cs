@@ -148,6 +148,36 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
                 await parameterRepository.CreateAsync(newNrParam);
             }
             
+            const string corsEnabledName = "CorsEnabled";
+            var corsEnabled = await parameterRepository.GetByNameAsync(corsEnabledName);
+            if (corsEnabled == null)
+            {
+                await parameterRepository.CreateAsync(new Parameter
+                {
+                    ParameterName = corsEnabledName,
+                    ParameterValue = "true",
+                    ParameterDescription = "Habilita o deshabilita el uso de CORS en la API",
+                    ParameterCategory = "Seguridad",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                });
+            }
+
+            const string corsAllowedOriginsName = "CorsAllowedOrigins";
+            var corsAllowed = await parameterRepository.GetByNameAsync(corsAllowedOriginsName);
+            if (corsAllowed == null)
+            {
+                await parameterRepository.CreateAsync(new Parameter
+                {
+                    ParameterName = corsAllowedOriginsName,
+                    ParameterValue = "http://localhost:5173",
+                    ParameterDescription = "Lista de dominios permitidos para CORS, separados por coma",
+                    ParameterCategory = "Seguridad",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                });
+            }
+            
         }
     }
 }

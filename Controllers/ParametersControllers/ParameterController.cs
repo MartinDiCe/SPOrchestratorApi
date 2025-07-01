@@ -70,5 +70,20 @@ namespace SPOrchestratorAPI.Controllers.ParametersControllers
             }
             return Ok(parameter);
         }
+        
+        /// <summary>
+        /// Obtiene todos los parámetros globales.
+        /// </summary>
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllParametersAsync()
+        {
+            var list = new List<Parameter>();
+            await foreach (var param in _parameterService.GetAllAsync())
+            {
+                list.Add(param);
+            }
+            return Ok(list);
+        }
+        
     }
 }

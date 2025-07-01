@@ -34,5 +34,15 @@ namespace SPOrchestratorAPI.Services.ParameterServices
         /// Un <see cref="IObservable{T}"/> que emite el parámetro si se encuentra; de lo contrario, <c>null</c>.
         /// </returns>
         IObservable<Parameter?> GetByNameAsync(string parameterName);
+        
+        /// <summary>
+        /// Obtiene todos los parámetros de manera reactiva y asíncrona.
+        /// </summary>
+        /// <returns>
+        /// Un <see cref="IAsyncEnumerable{Parameter}"/> que emite
+        /// cada <see cref="Parameter"/> de la base de datos.
+        /// </returns>
+        IAsyncEnumerable<Parameter> GetAllAsync();
+        
     }
 }

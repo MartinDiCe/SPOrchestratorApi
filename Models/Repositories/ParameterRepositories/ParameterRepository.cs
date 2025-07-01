@@ -40,7 +40,6 @@ public class ParameterRepository : IParameterRepository
     }
 
     /// <inheritdoc />
-    /// <inheritdoc />
     public async Task<Parameter?> GetByNameAsync(string parameterName)
     {
         if (string.IsNullOrWhiteSpace(parameterName))
@@ -50,5 +49,17 @@ public class ParameterRepository : IParameterRepository
 
         return await _context.Parameters.FirstOrDefaultAsync(
             p => p.ParameterName.ToLower() == parameterName.ToLower());
+    }
+    
+    /// <inheritdoc />
+    public async IAsyncEnumerable<Parameter> GetAllAsync()
+    {
+        // streaming reactivo: AsAsyncEnumerable lleva valores uno a uno al consumidor
+        await foreach (var param in _context.Parameters
+                           .AsNoTracking()
+                           .AsAsyncEnumerable())
+        {
+            yield return param;
+        }
     }
 }

@@ -33,5 +33,12 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
         /// de lo contrario, devuelve <c>null</c>.
         /// </returns>
         Task<Parameter?> GetByNameAsync(string parameterName);
+        
+        /// <summary>
+        /// Obtiene todos los parámetros de la base de datos.
+        /// </summary>
+        /// <returns>Una tarea que devuelve la colección de <see cref="Parameter"/>.</returns>
+        IAsyncEnumerable<Parameter> GetAllAsync();
+        
     }
 }

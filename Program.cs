@@ -132,12 +132,18 @@ else
     );
 }
 
+//Configurar Cors
+await builder.AddDynamicCorsAsync();
+
 var app = builder.Build();
 
 // ---------------------------------------------------------
 // 6) Inicializar BD (migraciones, seeds, etc.)
 // ---------------------------------------------------------
 DatabaseInitializer.Initialize(app.Services);
+
+// Habilito cors
+app.UseDynamicCors();
 
 // ---------------------------------------------------------
 // 7) Arranca el servidor de Hangfire (inicializa JobStorage.Current)
