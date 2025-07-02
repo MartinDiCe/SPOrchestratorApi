@@ -170,8 +170,8 @@ namespace SPOrchestratorAPI.Models.Repositories.ParameterRepositories
                 await parameterRepository.CreateAsync(new Parameter
                 {
                     ParameterName = corsAllowedOriginsName,
-                    ParameterValue = "http://localhost:5173",
-                    ParameterDescription = "Lista de dominios permitidos para CORS, separados por coma",
+                    ParameterValue = "*",
+                    ParameterDescription = "Lista de dominios permitidos para CORS, separados por coma. (* -> cualquier dominio)",
                     ParameterCategory = "Seguridad",
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = "System"
