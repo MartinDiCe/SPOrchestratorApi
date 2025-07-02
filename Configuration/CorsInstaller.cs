@@ -42,6 +42,20 @@ namespace SPOrchestratorAPI.Configuration
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .ToArray()
                 ?? Array.Empty<string>();
+            
+            // 3) Si esta con * lee cualquier origen
+            if (origins.Contains("*"))
+            {
+                builder.Services.AddCors(options =>
+                {
+                    options.AddPolicy(PolicyName, policy =>
+                        policy.AllowAnyOrigin()
+                            .AllowAnyHeader()
+                            .AllowAnyMethod());
+                });
+                
+                return builder;
+            }
 
             if (!origins.Any())
             {
