@@ -161,8 +161,15 @@ app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/swagger"), branch =>
 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/hangfire"), branch =>
 {
     branch.UseMiddleware<FeatureToggleMiddleware>("HangfireEnabled");
+
+    var dashboardOptions = new DashboardOptions
+    {
+        Authorization = new[] { new AllowAllDashboardAuthorizationFilter() }
+    };
+
     branch.UseHangfireDashboard(
-        builder.Configuration.GetValue<string>("Hangfire:DashboardPath") ?? "/hangfire"
+        builder.Configuration.GetValue<string>("Hangfire:DashboardPath") ?? "/hangfire",
+        dashboardOptions
     );
 });
 
