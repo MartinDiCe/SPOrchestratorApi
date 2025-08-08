@@ -2,8 +2,7 @@ using System.Text.Json.Serialization;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
-using SPOrchestratorAPI.Configuration;   
+using SPOrchestratorAPI.Configuration;
 using SPOrchestratorAPI.Data;
 using SPOrchestratorAPI.Examples;
 using SPOrchestratorAPI.Exceptions;
@@ -36,37 +35,31 @@ using Swashbuckle.AspNetCore.Filters;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------------------------------------------------------
-// 0) Configurar Hangfire (storage + servidor) en HangfireInstaller
+// 0) Registrar DatabaseConfig para inicialización
 // ---------------------------------------------------------
-builder.Services.AddHangfireServices(builder.Configuration);
-
+builder.Services.AddSingleton<DatabaseConfig>();
 
 // ---------------------------------------------------------
-// 1) Servicios básicos (Controllers, Swagger, ModelValidation)
+// 1) Configurar servicios básicos (Controllers, Swagger, EF, Hangfire)
 // ---------------------------------------------------------
 builder.Services.AddControllers()
-       .AddJsonOptions(opts =>
-           opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 builder.Services.AddSwaggerConfiguration();
 builder.Services.Configure<ApiBehaviorOptions>(opts =>
     opts.InvalidModelStateResponseFactory =
         context => ModelValidationResponseFactory.CustomResponse(context.ModelState)
 );
 
-// ---------------------------------------------------------
-// 2) EF Core DbContext
-// ---------------------------------------------------------
 builder.Services.AddDbContext<ApplicationDbContext>(opts =>
-    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ---------------------------------------------------------
-// 3) IHttpContextAccessor
-// ---------------------------------------------------------
+builder.Services.AddHangfireServices(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 
 // ---------------------------------------------------------
-// 4) Repositorios y servicios de aplicación
+// 2) Registrar repositorios y servicios de aplicación
 // ---------------------------------------------------------
 builder.Services.AddSingleton<IRecurringJobRegistrar, RecurringJobRegistrar>();
 builder.Services.AddScoped<IHangfireJobService, HangfireJobService>();
@@ -105,17 +98,11 @@ builder.Services.AddSwaggerExamplesFromAssemblyOf<StoredProcedureExecutionReques
 builder.Services.AddMemoryCache();
 
 // ---------------------------------------------------------
-// 4.1) New Relic: solo si 'newRelicEnabled' == "true"
-// ---------------------------------------------------------
-builder.AddNewRelicIfEnabled();
-
-// ---------------------------------------------------------
-// 5) Logging condicional (Hangfire filters, etc.)
+// 3) Logging condicional
 // ---------------------------------------------------------
 if (builder.Environment.IsProduction())
 {
     builder.Logging.ClearProviders();
-    
 }
 else
 {
@@ -125,56 +112,52 @@ else
     builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
     builder.Logging.AddFilter("Hangfire.Server.RecurringJobScheduler", LogLevel.Debug);
-    builder.Logging.AddFilter("Hangfire.Server.Worker",           LogLevel.Debug);
+    builder.Logging.AddFilter("Hangfire.Server.Worker", LogLevel.Debug);
     builder.Logging.AddFilter(
         "SPOrchestratorAPI.Services.SPOrchestratorServices.ScheduledOrchestratorService",
         LogLevel.Debug
     );
 }
 
-//Configurar Cors
+// ---------------------------------------------------------
+// 4) Antes de Build: crear BD, migraciones y seed
+// ---------------------------------------------------------
+using (var tempProvider = builder.Services.BuildServiceProvider())
+{
+    DatabaseInitializer.Initialize(tempProvider);
+}
+
+// ---------------------------------------------------------
+// 5) Antes de Build: habilitar New Relic y CORS dinámico
+// ---------------------------------------------------------
+builder.AddNewRelicIfEnabled();
 await builder.AddDynamicCorsAsync();
 
+// ---------------------------------------------------------
+// 6) Build y configurar pipeline
+// ---------------------------------------------------------
 var app = builder.Build();
 
-// ---------------------------------------------------------
-// 6) Inicializar BD (migraciones, seeds, etc.)
-// ---------------------------------------------------------
-DatabaseInitializer.Initialize(app.Services);
-
-// Habilito cors
-app.UseDynamicCors();
-
-// ---------------------------------------------------------
-// 7) Arranca el servidor de Hangfire (inicializa JobStorage.Current)
-// ---------------------------------------------------------
+// 6.1) Hangfire
 app.UseHangfireServer();
-
-// ---------------------------------------------------------
-// 8) Limpiar / Registrar / refrescar todos los recurring jobs
-// ---------------------------------------------------------
 await HangfireJobsInitializer.CleanUnscheduledJobsAsync(
     app.Services,
     app.Services.GetRequiredService<ILoggerFactory>()
-        .CreateLogger("HangfireJobsInitializer"));
-
+        .CreateLogger("HangfireJobsInitializer")
+);
 using (var scope = app.Services.CreateScope())
 {
-    scope.ServiceProvider
-         .GetRequiredService<IRecurringJobRegistrar>()
+    scope.ServiceProvider.GetRequiredService<IRecurringJobRegistrar>()
          .RegisterAllJobs();
 }
 
-// -------------------------------------------------------------------
-// 9) Pipeline de validación de swagger y hangfire dashboard activo
-// -------------------------------------------------------------------
+// 6.2) Swagger y Hangfire Dashboard con toggles
 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/swagger"), branch =>
 {
     branch.UseMiddleware<FeatureToggleMiddleware>("SwaggerEnabled");
     branch.UseSwagger();
     branch.UseSwaggerUI();
 });
-
 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/hangfire"), branch =>
 {
     branch.UseMiddleware<FeatureToggleMiddleware>("HangfireEnabled");
@@ -183,18 +166,14 @@ app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/hangfire"), branch =>
     );
 });
 
-// ---------------------------------------------------------
-// 10) Pipeline de Middlewares
-// ---------------------------------------------------------
+// 6.3) Middlewares finales
 if (app.Environment.IsDevelopment())
 {
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
 }
-
+app.UseDynamicCors();
 app.UseMiddleware<ApiTraceMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
-
-// Suscripción al bus de trazas
 ApiTraceBus.StartTraceSubscriber(app.Services.GetRequiredService<IServiceScopeFactory>());
 
 app.UseAuthorization();
