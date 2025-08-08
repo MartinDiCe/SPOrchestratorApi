@@ -2,15 +2,15 @@
 
 ## 1 · Portada & datos básicos
 
-| Elemento                           | Valor                                                                                                                                                                                                                               |
-|------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Versión mínima**                 | .NET 8 · SQL Server 2019 · Docker                                                                                                                                                                                                   |
-| **Imagen oficial**                 | `mdiceprojects/sporchestratorapi:latest`                                                                                                                                                                                            |
-| **Lanzar en un minuto Producción** | ```bash docker run -d -p 9000:80 --name sporchestratorapi --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:80 -e NEWRELIC_LICENSE_KEY=YourApiKey mdiceprojects/sporchestratorapi:latest``` |
-| **Lanzar en un minuto Desarrollo** | ```bash docker run -d -p 9001:80 --name sporchestratorapiQA --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 NEWRELIC_LICENSE_KEY=YourApiKey mdiceprojects/sporchestratorapi:latest``` |
-| **Swagger UI**                     | `https://<DOMINIO>/swagger/index.html`                                                                                                                                                                                              |
-| **Hangfire dashboard**             | `https://<DOMINIO>/hangfire`                                                                                                                                                                                                        |
-| **Repositorio**                    | <https://github.com/MartinDiCe/SPOrchestratorApi>                                                                                                                                                                                   |
+| Elemento                           | Valor                                                                                                                                                                                                                    |
+|------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Versión mínima**                 | .NET 8 · SQL Server 2019 · Docker                                                                                                                                                                                        |
+| **Imagen oficial**                 | `mdiceprojects/sporchestratorapi:latest`                                                                                                                                                                                 |
+| **Lanzar en un minuto Producción** | ```bash docker run -d -p 9000:80 --name SPOAPI --restart unless-stopped -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:80 -e NEWRELIC_LICENSE_KEY=YourApiKey mdiceprojects/sporchestratorapi:latest``` |
+| **Lanzar en un minuto Desarrollo** | ```bash docker run -d --restart unless-stopped -p 9000:80 --name SPOAPI-qa -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:80 mdiceprojects/sporchestratorapi```                                       |
+| **Swagger UI**                     | `https://<DOMINIO>/swagger/index.html`                                                                                                                                                                                   |
+| **Hangfire dashboard**             | `https://<DOMINIO>/hangfire`                                                                                                                                                                                             |
+| **Repositorio**                    | <https://github.com/MartinDiCe/SPOrchestratorApi>                                                                                                                                                                        |
 
 ---
 
